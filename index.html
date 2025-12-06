@@ -308,6 +308,20 @@
       gap: 8px;
     }
 
+    .climate-mini-grid {
+      margin-top: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    }
+
+    .climate-mini-card {
+      padding: 6px 8px;
+      min-height: auto;
+    }
+
+    .climate-mini-card canvas {
+      height: 90px !important;
+    }
+
     .card {
       background: var(--card);
       border-radius: 14px;
@@ -337,6 +351,35 @@
     .card-sub {
       font-size: 0.75rem;
       color: var(--text-soft);
+    }
+
+    .risk-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .risk-badge.low {
+      background: rgba(34, 197, 94, 0.2);
+      border: 1px solid rgba(34, 197, 94, 0.6);
+      color: #bbf7d0;
+    }
+
+    .risk-badge.medium {
+      background: rgba(234, 179, 8, 0.18);
+      border: 1px solid rgba(250, 204, 21, 0.7);
+      color: #facc15;
+    }
+
+    .risk-badge.high {
+      background: rgba(248, 113, 113, 0.18);
+      border: 1px solid rgba(248, 113, 113, 0.9);
+      color: #fecaca;
     }
 
     canvas {
@@ -617,7 +660,25 @@
               <h3 data-i18n="chart.climate.title">
                 Modeled warming: past vs future
               </h3>
+              <!-- Main combined chart (unchanged) -->
               <canvas id="chart-climate-trend"></canvas>
+
+              <!-- New mini charts for each period -->
+              <div class="cards-grid climate-mini-grid">
+                <div class="card climate-mini-card">
+                  <h3 data-i18n="climate.baselineLabel">Baseline 1960–1990</h3>
+                  <canvas id="chart-climate-baseline"></canvas>
+                </div>
+                <div class="card climate-mini-card">
+                  <h3 data-i18n="climate.midLabel">Recent 1990–2020</h3>
+                  <canvas id="chart-climate-mid"></canvas>
+                </div>
+                <div class="card climate-mini-card">
+                  <h3 data-i18n="climate.futureLabel">Future 2020–2050</h3>
+                  <canvas id="chart-climate-future"></canvas>
+                </div>
+              </div>
+
               <div class="status-text" id="climateTrendStatus">
                 –
               </div>
@@ -724,6 +785,11 @@
                   </span>
                 </div>
               </div>
+            </div>
+
+            <div class="card">
+              <h3 data-i18n="chart.risk.title">Risk scores (0–100)</h3>
+              <canvas id="chart-risk-scores"></canvas>
             </div>
 
             <div
@@ -1046,7 +1112,9 @@
         "scenario.summaryScenario": "With this action it could be about",
         "scenario.educationalNote": "educational scenario",
         "climate.modelDetail": "1990→2050 model.",
-        "climate.baselineLabel": "Baseline:",
+        "climate.baselineLabel": "Baseline 1960–1990",
+        "climate.midLabel": "Recent 1990–2020",
+        "climate.futureLabel": "Future 2020–2050",
         "climate.scenarioLabel": "this scenario:",
         "overview.lastUpdated": "Last updated:",
         "overview.localTime": "local time",
@@ -1065,6 +1133,7 @@
         "risk.noFloodData": "No index for this location.",
         "risk.floodBase": "Experimental indicator.",
         "risk.ensembleBase": "Average ensemble rain:",
+        "chart.risk.title": "Risk scores (0–100)",
       },
       tr: {
         "app.title": "İklim Gerçeği Paneli",
@@ -1143,7 +1212,9 @@
         "scenario.summaryScenario": "Bu eylemle yaklaşık",
         "scenario.educationalNote": "eğitici senaryo",
         "climate.modelDetail": "1990→2050 model.",
-        "climate.baselineLabel": "Temel:",
+        "climate.baselineLabel": "1960–1990 temel",
+        "climate.midLabel": "1990–2020 yakın geçmiş",
+        "climate.futureLabel": "2020–2050 gelecek",
         "climate.scenarioLabel": "bu senaryo:",
         "overview.lastUpdated": "Son güncelleme:",
         "overview.localTime": "yerel saat",
@@ -1162,6 +1233,7 @@
         "risk.noFloodData": "Bu konum için indeks yok.",
         "risk.floodBase": "Deneme amaçlı bir gösterge.",
         "risk.ensembleBase": "Topluluk ortalama yağış:",
+        "chart.risk.title": "Risk skorları (0–100)",
       },
     };
 
@@ -1177,6 +1249,7 @@
       linePM25: "#c084fc",
       linePM10: "#f472b6",
       lineAQI: "#facc15",
+      danger: "#ef4444",
     };
 
     let state = {
@@ -1193,6 +1266,10 @@
         dailyTempRain: null,
         airQuality: null,
         climateTrend: null,
+        climateMiniBaseline: null,
+        climateMiniMid: null,
+        climateMiniFuture: null,
+        riskScores: null,
       },
     };
 
@@ -1227,6 +1304,13 @@
       const hour = pad(date.getHours());
       const minute = pad(date.getMinutes());
       return `${year}-${month}-${day} ${hour}:${minute}`;
+    }
+
+    function makeCityKey(location) {
+      // Stable key per approximate location to reuse cache
+      const latKey = Number(location.latitude).toFixed(3);
+      const lonKey = Number(location.longitude).toFixed(3);
+      return `${latKey}_${lonKey}`;
     }
 
     function average(arr) {
@@ -1322,6 +1406,13 @@
       if (value < thresholds.low) return t("risk.low");
       if (value < thresholds.high) return t("risk.medium");
       return t("risk.high");
+    }
+
+    function renderRiskBadge(label) {
+      if (!label) return "";
+      const badgeClass =
+        label === t("risk.low") ? "low" : label === t("risk.medium") ? "medium" : "high";
+      return `<span class="risk-badge ${badgeClass}">${label}</span>`;
     }
 
     function captureElements() {
@@ -1642,6 +1733,11 @@
     }
 
     async function fetchClimateTrend(location) {
+      const cached = await loadCachedClimate(location);
+      if (cached && Array.isArray(cached.periods) && cached.periods.length >= 3) {
+        return cached;
+      }
+
       const model = "CMCC_CM2_VHR4";
       const periods = [
         { label: "1960–1990", start: "1960-01-01", end: "1990-12-31" },
@@ -1665,8 +1761,15 @@
         return { ...period, avgMax };
       }
 
-      const results = await Promise.all(periods.map((p) => fetchPeriod(p)));
-      return { model, periods: results };
+      try {
+        const results = await Promise.all(periods.map((p) => fetchPeriod(p)));
+        const climate = { model, periods: results };
+        await saveClimateCache(location, climate);
+        return climate;
+      } catch (e) {
+        console.warn("Climate API failed", e);
+        return cached || null;
+      }
     }
 
     async function fetchElevation(location) {
@@ -1926,6 +2029,254 @@
           },
         },
       });
+    }
+
+    function buildClimateMiniCharts(climate, scenarioFactor = 1) {
+      if (!climate || !Array.isArray(climate.periods) || climate.periods.length < 3) {
+        return;
+      }
+
+      const [p0, p1, p2] = climate.periods;
+      const baseAvg = p0?.avgMax ?? null;
+      const midAvg = p1?.avgMax ?? null;
+      const rawFutureAvg = p2?.avgMax ?? null;
+
+      let adjustedFutureAvg = rawFutureAvg;
+      if (baseAvg !== null && rawFutureAvg !== null) {
+        const delta = rawFutureAvg - baseAvg;
+        adjustedFutureAvg = baseAvg + delta * scenarioFactor;
+      }
+
+      const baselineCanvas = document.getElementById("chart-climate-baseline");
+      const midCanvas = document.getElementById("chart-climate-mid");
+      const futureCanvas = document.getElementById("chart-climate-future");
+
+      if (state.charts.climateMiniBaseline) state.charts.climateMiniBaseline.destroy();
+      if (state.charts.climateMiniMid) state.charts.climateMiniMid.destroy();
+      if (state.charts.climateMiniFuture) state.charts.climateMiniFuture.destroy();
+
+      const buildMini = (ctx, label, value) => {
+        if (!ctx || value === null || value === undefined || Number.isNaN(value)) return null;
+        return new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: [label],
+            datasets: [
+              {
+                label: "Avg max °C",
+                data: [value],
+                backgroundColor: chartPalette.lineFuture,
+                borderColor: chartPalette.lineFuture,
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+            },
+            scales: {
+              x: { ticks: { color: chartPalette.text }, grid: { display: false } },
+              y: {
+                ticks: { color: chartPalette.text, maxTicksLimit: 3 },
+                grid: { color: chartPalette.gridSoft },
+              },
+            },
+          },
+        });
+      };
+
+      if (baselineCanvas) {
+        state.charts.climateMiniBaseline = buildMini(
+          baselineCanvas.getContext("2d"),
+          p0.label,
+          baseAvg
+        );
+      }
+      if (midCanvas) {
+        state.charts.climateMiniMid = buildMini(
+          midCanvas.getContext("2d"),
+          p1.label,
+          midAvg
+        );
+      }
+      if (futureCanvas) {
+        state.charts.climateMiniFuture = buildMini(
+          futureCanvas.getContext("2d"),
+          p2.label,
+          adjustedFutureAvg
+        );
+      }
+    }
+
+    function buildRiskScoresChart(riskMetrics) {
+      const canvas = document.getElementById("chart-risk-scores");
+      if (!canvas) return;
+
+      if (!riskMetrics) {
+        if (state.charts.riskScores) {
+          state.charts.riskScores.destroy();
+          state.charts.riskScores = null;
+        }
+        return;
+      }
+
+      const labels = [];
+      const data = [];
+
+      if (riskMetrics.heat?.score !== null && riskMetrics.heat?.score !== undefined) {
+        labels.push(t("risk.heatLabel"));
+        data.push(clamp(riskMetrics.heat.score, 0, 100));
+      }
+      if (riskMetrics.wind?.score !== null && riskMetrics.wind?.score !== undefined) {
+        labels.push(t("risk.windLabel"));
+        data.push(clamp(riskMetrics.wind.score, 0, 100));
+      }
+      if (riskMetrics.rain?.score !== null && riskMetrics.rain?.score !== undefined) {
+        labels.push(t("risk.rainLabel"));
+        data.push(clamp(riskMetrics.rain.score, 0, 100));
+      }
+
+      if (!labels.length) {
+        if (state.charts.riskScores) {
+          state.charts.riskScores.destroy();
+          state.charts.riskScores = null;
+        }
+        return;
+      }
+
+      if (state.charts.riskScores) {
+        state.charts.riskScores.destroy();
+      }
+
+      state.charts.riskScores = new Chart(canvas.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Risk (0–100)",
+              data,
+              backgroundColor: chartPalette.danger || "#ef4444",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false,
+            },
+          },
+          scales: {
+            x: {
+              ticks: { color: chartPalette.text },
+              grid: { display: false },
+            },
+            y: {
+              ticks: { color: chartPalette.text },
+              min: 0,
+              max: 100,
+              grid: { color: chartPalette.gridSoft },
+            },
+          },
+        },
+      });
+    }
+
+    /*
+    -- Run this in Supabase SQL editor (only a comment in code, DO NOT execute from JS)
+    create table if not exists public.city_climate_models (
+      id bigint generated always as identity primary key,
+      city_key text unique,
+      city_name text,
+      country text,
+      latitude double precision,
+      longitude double precision,
+      model text,
+      baseline_label text,
+      mid_label text,
+      future_label text,
+      baseline_avg_max_c double precision,
+      mid_avg_max_c double precision,
+      future_avg_max_c double precision,
+      created_at timestamptz default now(),
+      updated_at timestamptz default now()
+    );
+    */
+
+    async function loadCachedClimate(location) {
+      try {
+        const cityKey = makeCityKey(location);
+        const { data, error } = await supabase
+          .from("city_climate_models")
+          .select("*")
+          .eq("city_key", cityKey)
+          .maybeSingle();
+
+        if (error || !data) return null;
+
+        const periods = [
+          {
+            label: data.baseline_label || "1960–1990",
+            avgMax: data.baseline_avg_max_c,
+          },
+          {
+            label: data.mid_label || "1990–2020",
+            avgMax: data.mid_avg_max_c,
+          },
+          {
+            label: data.future_label || "2020–2050",
+            avgMax: data.future_avg_max_c,
+          },
+        ];
+
+        return {
+          model: data.model || "CMCC_CM2_VHR4",
+          periods,
+        };
+      } catch (e) {
+        console.warn("loadCachedClimate failed", e);
+        return null;
+      }
+    }
+
+    async function saveClimateCache(location, climate) {
+      try {
+        if (!climate || !Array.isArray(climate.periods) || climate.periods.length < 3) {
+          return;
+        }
+        const cityKey = makeCityKey(location);
+        const [p0, p1, p2] = climate.periods;
+        const payload = {
+          city_key: cityKey,
+          city_name: location.name,
+          country: location.country || null,
+          latitude: location.latitude,
+          longitude: location.longitude,
+          model: climate.model || "CMCC_CM2_VHR4",
+          baseline_label: p0.label,
+          mid_label: p1.label,
+          future_label: p2.label,
+          baseline_avg_max_c: p0.avgMax,
+          mid_avg_max_c: p1.avgMax,
+          future_avg_max_c: p2.avgMax,
+          updated_at: new Date().toISOString(),
+        };
+
+        const { error } = await supabase
+          .from("city_climate_models")
+          .upsert(payload, { onConflict: "city_key" });
+
+        if (error) {
+          console.warn("saveClimateCache error", error);
+        }
+      } catch (e) {
+        console.warn("saveClimateCache failed", e);
+      }
     }
 
     // ============================
@@ -2253,6 +2604,7 @@
       )} °C (${t("climate.modeledApprox")}).`;
 
       buildClimateTrendChart(climate, factor);
+      buildClimateMiniCharts(climate, factor);
       updateScenarioSummary(deltaRaw, deltaScenario);
     }
 
@@ -2298,9 +2650,11 @@
           els.summaryFlood.textContent = valueText;
           const prefix = t("risk.derivedRain");
           const note = t("risk.combinedNote");
-          els.summaryFloodDetail.textContent = label
-            ? `${prefix} ${label}. ${note}`
-            : `${prefix} ${valueText}. ${note}`;
+          if (label) {
+            els.summaryFloodDetail.innerHTML = `${prefix} ${renderRiskBadge(label)}. ${note}`;
+          } else {
+            els.summaryFloodDetail.textContent = `${prefix} ${valueText}. ${note}`;
+          }
           return;
         }
         els.summaryFlood.textContent = "–";
@@ -2323,9 +2677,11 @@
       const prefix = t("risk.floodPrefix");
       const baseText = t("risk.floodBase");
       const note = t("risk.combinedNote");
-      els.summaryFloodDetail.textContent = label
-        ? `${baseText} ${prefix} ${label}. ${note}`
-        : `${baseText} ${t("risk.noFloodData")} ${note}`;
+      if (label) {
+        els.summaryFloodDetail.innerHTML = `${baseText} ${prefix} ${renderRiskBadge(label)}. ${note}`;
+      } else {
+        els.summaryFloodDetail.textContent = `${baseText} ${t("risk.noFloodData")} ${note}`;
+      }
     }
 
     function updateEnsembleUI(ensemble, riskMetrics) {
@@ -2339,9 +2695,13 @@
               ? getRiskLabel(wind.score, { low: 15, high: 45 })
               : null;
           els.summaryEnsemble.textContent = `${formatNumber(windVal, 1)} m/s`;
-          els.summaryEnsembleDetail.textContent = label
-            ? `${t("risk.windLabel")} ${label}. ${t("risk.combinedNote")}`
-            : `${t("risk.windLabel")} ${formatNumber(windVal, 1)} m/s.`;
+          if (label) {
+            els.summaryEnsembleDetail.innerHTML = `${t("risk.windLabel")} ${renderRiskBadge(label)}. ${t(
+              "risk.combinedNote"
+            )}`;
+          } else {
+            els.summaryEnsembleDetail.textContent = `${t("risk.windLabel")} ${formatNumber(windVal, 1)} m/s.`;
+          }
           return;
         }
         els.summaryEnsemble.textContent = "–";
@@ -2367,9 +2727,13 @@
       const label = getRiskLabel(avg, { low: 0.2, high: 1 });
       const baseText = t("risk.ensembleBase");
       const riskPrefix = t("risk.heavyRainPrefix");
-      els.summaryEnsembleDetail.textContent = label
-        ? `${baseText} ${formatNumber(avg, 2)} mm. ${riskPrefix} ${label}.`
-        : `${baseText} ${formatNumber(avg, 2)} mm. ${t("risk.combinedNote")}`;
+      if (label) {
+        els.summaryEnsembleDetail.innerHTML = `${baseText} ${formatNumber(avg, 2)} mm. ${riskPrefix} ${renderRiskBadge(
+          label
+        )}.`;
+      } else {
+        els.summaryEnsembleDetail.textContent = `${baseText} ${formatNumber(avg, 2)} mm. ${t("risk.combinedNote")}`;
+      }
     }
 
     function updateRiskSummary(riskMetrics) {
@@ -2421,9 +2785,16 @@
       options.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
       const top = options[0];
       const detailText = top.detail ? ` (${top.detail})` : "";
-      els.riskSummaryText.textContent = `${t("risk.summaryPrefix")} ${top.label}${detailText}. ${t(
-        "risk.combinedNote"
-      )}`;
+      const label = getRiskLabel(top.score, { low: 25, high: 60 });
+      if (label) {
+        els.riskSummaryText.innerHTML = `${t("risk.summaryPrefix")} ${renderRiskBadge(label)}${detailText}. ${t(
+          "risk.combinedNote"
+        )}`;
+      } else {
+        els.riskSummaryText.textContent = `${t("risk.summaryPrefix")} ${top.label}${detailText}. ${t(
+          "risk.combinedNote"
+        )}`;
+      }
     }
 
     // ============================
@@ -2459,6 +2830,7 @@
         updateFloodUI(flood, riskMetrics);
         updateEnsembleUI(ensemble, riskMetrics);
         updateRiskSummary(riskMetrics);
+        buildRiskScoresChart(riskMetrics);
 
         state.lastUpdatedAt = new Date();
         renderLastUpdated();
