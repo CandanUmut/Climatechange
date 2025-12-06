@@ -84,6 +84,11 @@
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
+      flex: 1;
+    }
+
+    .header-controls .field-group:last-child {
+      margin-left: auto;
     }
 
     .field-group {
@@ -220,7 +225,7 @@
     }
 
     .city-list {
-      max-height: 220px;
+      max-height: 180px;
       overflow-y: auto;
       padding-right: 4px;
       display: grid;
@@ -721,6 +726,15 @@
               </div>
             </div>
 
+            <div
+              class="status-text"
+              id="riskSummaryText"
+              data-i18n="risk.combinedNote"
+            >
+              We derive a simple risk score from local wind, rain and
+              temperature for the coming days.
+            </div>
+
             <div class="card">
               <p class="tagline" data-i18n="text.riskExplain">
                 Global warming doesn’t only mean “a bit warmer”. It shifts the
@@ -986,7 +1000,14 @@
         "scenario.strong": "Strong climate action",
         "scenario.slider": "Global action level",
         "scenario.note": "Educational illustration only; not an official forecast.",
+        "scenario.periodsComparison": "1960–1990 → 2020–2050",
         "climate.noData": "Could not load climate model data for this area.",
+        "climate.periodsExplain":
+          "Modeled average daily max temperatures for three time windows (educational, approximate).",
+        "climate.periodsDetailPrefix": "Period averages (°C):",
+        "climate.periodsDeltaLabel": "Total modeled warming:",
+        "climate.periodsStatus": "Three-period model view:",
+        "climate.modeledApprox": "model-based, approximate",
         "card.airDetail.pm": "PM2.5 / PM10 (µg/m³)",
         "card.airDetail.gases": "Key gases (µg/m³)",
         "card.marine.title": "Sea surface (if coastal)",
@@ -999,8 +1020,15 @@
         "card.ensemble.title": "Ensemble forecasts (experimental)",
         "text.ensembleExplainShort":
           "Ensembles run many variations of a model to understand uncertainty in future weather and extremes.",
+        "risk.combinedNote":
+          "We derive a simple risk score from local wind, rain and temperature for the coming days.",
         "text.riskExplain":
           "Warming shifts the odds of extremes: heatwaves, heavy rain, droughts, sea level rise. Local data helps us ask what the main risks are.",
+        "risk.summaryPrefix": "Highest near-term risk looks like:",
+        "risk.heatLabel": "heat stress",
+        "risk.windLabel": "wind/storm",
+        "risk.rainLabel": "heavy rain",
+        "risk.derivedRain": "Derived heavy rain index:",
         "learn.title": "How do you feel about this city?",
         "learn.concernLabel": "Concern level (1–5)",
         "learn.focusLabel": "Biggest concern",
@@ -1069,7 +1097,14 @@
         "scenario.strong": "Güçlü iklim eylemi",
         "scenario.slider": "Küresel eylem seviyesi",
         "scenario.note": "Eğitici bir örnek; resmi tahmin değildir.",
+        "scenario.periodsComparison": "1960–1990 → 2020–2050",
         "climate.noData": "Bu bölge için iklim modeli verisi alınamadı.",
+        "climate.periodsExplain":
+          "Üç dönem için ortalama günlük en yüksek sıcaklıkların model çıktısı (yaklaşık, eğitsel).",
+        "climate.periodsDetailPrefix": "Dönem ortalamaları (°C):",
+        "climate.periodsDeltaLabel": "Toplam model ısınması:",
+        "climate.periodsStatus": "Üç dönemlik model görünümü:",
+        "climate.modeledApprox": "model temelli, yaklaşık",
         "card.airDetail.pm": "PM2.5 / PM10 (µg/m³)",
         "card.airDetail.gases": "Temel gazlar (µg/m³)",
         "card.marine.title": "Deniz yüzeyi (kıyıya yakınsa)",
@@ -1082,8 +1117,15 @@
         "card.ensemble.title": "Topluluk tahminleri (deneme)",
         "text.ensembleExplainShort":
           "Topluluk (ensemble) tahminleri, belirsizliği anlamak için çok sayıda model koşumu kullanır.",
+        "risk.combinedNote":
+          "Önümüzdeki günlerdeki sıcaklık, rüzgar ve yağışı kullanarak basit bir risk puanı hesaplıyoruz.",
         "text.riskExplain":
           "Isınma sadece ‘biraz daha sıcak’ demek değil; aşırı sıcak, sel, kuraklık ve deniz seviyesi risklerini de artırır.",
+        "risk.summaryPrefix": "Bu şehir için baskın kısa vadeli risk:",
+        "risk.heatLabel": "ısı stresi",
+        "risk.windLabel": "rüzgar/fırtına",
+        "risk.rainLabel": "şiddetli yağış",
+        "risk.derivedRain": "Türetilmiş yağış indeksi:",
         "learn.title": "Bu şehir hakkında ne hissediyorsun?",
         "learn.concernLabel": "Endişe seviyesi (1–5)",
         "learn.focusLabel": "En büyük endişen",
@@ -1194,10 +1236,71 @@
       return Number.isFinite(val) ? val : null;
     }
 
+    function clamp(val, min, max) {
+      return Math.min(Math.max(val, min), max);
+    }
+
     function latestValue(arr) {
       if (!Array.isArray(arr) || arr.length === 0) return null;
       const val = arr[arr.length - 1];
       return Number.isFinite(val) ? val : null;
+    }
+
+    function getAirLastIndex(hourlyAir) {
+      const len =
+        hourlyAir?.us_aqi?.length ??
+        hourlyAir?.pm2_5?.length ??
+        hourlyAir?.pm10?.length ??
+        0;
+      return len > 0 ? len - 1 : null;
+    }
+
+    function pickAirValue(arr, lastIdx) {
+      if (!Array.isArray(arr) || !arr.length) return null;
+      if (lastIdx !== null && arr.length > lastIdx) return arr[lastIdx];
+      return latestValue(arr);
+    }
+
+    // Simple, educational-only indices based on the next few days of forecasts
+    function computeRiskMetrics(forecast) {
+      const hourly = forecast?.hourly ?? {};
+      const window = 24 * 7;
+      const sliceValid = (arr) =>
+        (arr ?? []).slice(0, window).filter((v) => Number.isFinite(v));
+
+      const temps = sliceValid(hourly.temperature_2m);
+      const precip = sliceValid(hourly.precipitation);
+      const wind = sliceValid(hourly.wind_speed_10m);
+      const gusts = sliceValid(hourly.wind_gusts_10m);
+
+      const maxTemp = temps.length ? Math.max(...temps) : null;
+      const heatRiskScore =
+        maxTemp !== null ? clamp((maxTemp - 25) * 4, 0, 100) : null;
+
+      const maxWind = wind.length ? Math.max(...wind) : null;
+      const maxGust = gusts.length ? Math.max(...gusts) : null;
+      const windPeak = Number.isFinite(maxGust)
+        ? Math.max(maxGust, maxWind ?? maxGust)
+        : maxWind;
+      const stormRiskScore =
+        windPeak !== null ? clamp((windPeak - 30) * 2.5, 0, 100) : null;
+
+      const totalRain = precip.length
+        ? precip.reduce((sum, v) => sum + v, 0)
+        : null;
+      const maxPrecip = precip.length ? Math.max(...precip) : null;
+      const heavyRainScore =
+        maxPrecip !== null
+          ? clamp(Math.max(maxPrecip * 20, totalRain ?? 0), 0, 100)
+          : totalRain !== null
+          ? clamp(totalRain, 0, 100)
+          : null;
+
+      return {
+        heat: { maxTemp, score: heatRiskScore },
+        wind: { maxWind, maxGust, score: stormRiskScore },
+        rain: { totalRain, maxPrecip, score: heavyRainScore },
+      };
     }
 
     function qs(id) {
@@ -1254,6 +1357,7 @@
       els.summaryFloodDetail = qs("summary-flood-detail");
       els.summaryEnsemble = qs("summary-ensemble");
       els.summaryEnsembleDetail = qs("summary-ensemble-detail");
+      els.riskSummaryText = qs("riskSummaryText");
       els.airSummaryText = qs("airSummaryText");
       els.lastUpdatedText = qs("lastUpdatedText");
 
@@ -1505,7 +1609,10 @@
       const url = new URL("https://api.open-meteo.com/v1/forecast");
       url.searchParams.set("latitude", location.latitude);
       url.searchParams.set("longitude", location.longitude);
-      url.searchParams.set("hourly", "temperature_2m,precipitation");
+      url.searchParams.set(
+        "hourly",
+        "temperature_2m,precipitation,wind_speed_10m,wind_gusts_10m"
+      );
       url.searchParams.set(
         "daily",
         "temperature_2m_max,temperature_2m_min,precipitation_sum"
@@ -1535,24 +1642,31 @@
     }
 
     async function fetchClimateTrend(location) {
-      // Very simple demo: compare modeled yearly average max temp for 1990 vs 2050
       const model = "CMCC_CM2_VHR4";
-      async function fetchYear(year) {
+      const periods = [
+        { label: "1960–1990", start: "1960-01-01", end: "1990-12-31" },
+        { label: "1990–2020", start: "1990-01-01", end: "2020-12-31" },
+        { label: "2020–2050", start: "2020-01-01", end: "2050-12-31" },
+      ];
+
+      async function fetchPeriod(period) {
         const url = new URL("https://climate-api.open-meteo.com/v1/climate");
         url.searchParams.set("latitude", location.latitude);
         url.searchParams.set("longitude", location.longitude);
-        url.searchParams.set("start_date", `${year}-01-01`);
-        url.searchParams.set("end_date", `${year}-12-31`);
+        url.searchParams.set("start_date", period.start);
+        url.searchParams.set("end_date", period.end);
         url.searchParams.set("models", model);
         url.searchParams.set("daily", "temperature_2m_max");
         url.searchParams.set("timezone", "auto");
         const res = await fetch(url.toString());
         if (!res.ok) throw new Error("Climate API error");
-        return res.json();
+        const data = await res.json();
+        const avgMax = average(data?.daily?.temperature_2m_max ?? []);
+        return { ...period, avgMax };
       }
 
-      const [baseline, future] = await Promise.all([fetchYear(1990), fetchYear(2050)]);
-      return { model, baseline, future };
+      const results = await Promise.all(periods.map((p) => fetchPeriod(p)));
+      return { model, periods: results };
     }
 
     async function fetchElevation(location) {
@@ -1768,38 +1882,35 @@
 
     function buildClimateTrendChart(climate, scenarioFactor = 1) {
       if (!els.chartClimateTrend) return;
-      const { baseline, future } = climate;
+      const periods = climate?.periods ?? [];
+      if (!periods.length) {
+        if (state.charts.climateTrend) state.charts.climateTrend.destroy();
+        return;
+      }
 
-      const timesBase = baseline?.daily?.time ?? [];
-      const tempsBase = baseline?.daily?.temperature_2m_max ?? [];
-      const timesFuture = future?.daily?.time ?? [];
-      const tempsFutureRaw = future?.daily?.temperature_2m_max ?? [];
-      const tempsFuture = applyScenarioToFuture(
-        tempsBase,
-        tempsFutureRaw,
-        scenarioFactor
-      );
+      const baseAvg = periods[0]?.avgMax ?? null;
+      const labels = periods.map((p) => p.label);
+      const values = periods.map((p, idx) => {
+        if (idx === periods.length - 1 && baseAvg !== null && p.avgMax !== null) {
+          const delta = p.avgMax - baseAvg;
+          return baseAvg + delta * scenarioFactor;
+        }
+        return p.avgMax ?? null;
+      });
 
       if (state.charts.climateTrend) state.charts.climateTrend.destroy();
 
       state.charts.climateTrend = new Chart(els.chartClimateTrend.getContext("2d"), {
-        type: "line",
+        type: "bar",
         data: {
-          labels: timesBase,
+          labels,
           datasets: [
             {
-              label: "1990 max °C (model)",
-              data: tempsBase ?? [],
-              borderColor: chartPalette.lineMin,
-              backgroundColor: chartPalette.lineMin,
-              tension: 0.35,
-            },
-            {
-              label: "2050 max °C (model)",
-              data: tempsFuture ?? [],
-              borderColor: chartPalette.lineFuture,
+              label: "Avg max °C (model)",
+              data: values,
               backgroundColor: chartPalette.lineFuture,
-              tension: 0.35,
+              borderColor: chartPalette.lineFuture,
+              borderWidth: 1,
             },
           ],
         },
@@ -1834,23 +1945,22 @@
           : null;
 
       const hourlyAir = air.hourly ?? {};
-      const lastIdx = (hourlyAir.us_aqi?.length ?? 1) - 1;
-      const aqi = hourlyAir.us_aqi?.[lastIdx] ?? null;
+      const lastIdx = getAirLastIndex(hourlyAir);
+      const aqi = pickAirValue(hourlyAir.us_aqi, lastIdx);
 
-      const pm10 = hourlyAir.pm10?.[lastIdx] ?? null;
-      const pm25 = hourlyAir.pm2_5?.[lastIdx] ?? null;
-      const ozone = hourlyAir.ozone?.[lastIdx] ?? null;
-      const co = hourlyAir.carbon_monoxide?.[lastIdx] ?? null;
-      const no2 = hourlyAir.nitrogen_dioxide?.[lastIdx] ?? null;
-      const so2 = hourlyAir.sulphur_dioxide?.[lastIdx] ?? null;
+      const pm10 = pickAirValue(hourlyAir.pm10, lastIdx);
+      const pm25 = pickAirValue(hourlyAir.pm2_5, lastIdx);
+      const ozone = pickAirValue(hourlyAir.ozone, lastIdx);
+      const co = pickAirValue(hourlyAir.carbon_monoxide, lastIdx);
+      const no2 = pickAirValue(hourlyAir.nitrogen_dioxide, lastIdx);
+      const so2 = pickAirValue(hourlyAir.sulphur_dioxide, lastIdx);
 
       let climateTrend = null;
-      if (climate?.baseline?.daily?.temperature_2m_max && climate?.future?.daily?.temperature_2m_max) {
-        const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
-        const baselineAvg = avg(climate.baseline.daily.temperature_2m_max);
-        const futureAvg = avg(climate.future.daily.temperature_2m_max);
+      if (Array.isArray(climate?.periods) && climate.periods.length >= 2) {
+        const baselineAvg = climate.periods[0]?.avgMax ?? null;
+        const futureAvg = climate.periods[climate.periods.length - 1]?.avgMax ?? null;
         if (baselineAvg != null && futureAvg != null) {
-          const decades = 6; // 1990 -> 2050
+          const decades = 9; // ~1960 -> 2050
           climateTrend = (futureAvg - baselineAvg) / decades;
         }
       }
@@ -1877,6 +1987,8 @@
         ensembleRain = avg;
       }
 
+      const riskMetrics = computeRiskMetrics(forecast);
+
       const payload = {
         user_name: state.userName || null,
         city_name: location.name,
@@ -1900,6 +2012,10 @@
         climate_trend_c_per_decade: climateTrend,
         elevation_m: elevVal,
         ensemble_rain_mm: ensembleRain,
+        // Derived educational risk metrics (optional columns)
+        heat_risk_score: riskMetrics?.heat?.score ?? null,
+        wind_risk_score: riskMetrics?.wind?.score ?? null,
+        rain_risk_score: riskMetrics?.rain?.score ?? null,
       };
 
       try {
@@ -1974,10 +2090,22 @@
       }
 
       const hourlyAir = air.hourly ?? {};
-      const len = hourlyAir.us_aqi?.length ?? 0;
-      if (len > 0) {
-        const lastIdx = len - 1;
-        const aqi = hourlyAir.us_aqi[lastIdx];
+      const hasAnyAir = [
+        hourlyAir.us_aqi,
+        hourlyAir.pm2_5,
+        hourlyAir.pm10,
+        hourlyAir.ozone,
+        hourlyAir.carbon_monoxide,
+      ].some((arr) => Array.isArray(arr) && arr.length);
+
+      const preferredLastIdx = getAirLastIndex(hourlyAir);
+      const pmLastIdx =
+        hourlyAir.pm2_5?.length || hourlyAir.pm10?.length
+          ? (hourlyAir.pm2_5?.length ?? hourlyAir.pm10?.length) - 1
+          : preferredLastIdx;
+
+      const aqi = pickAirValue(hourlyAir.us_aqi, preferredLastIdx);
+      if (hasAnyAir && aqi !== null) {
         els.summaryAqi.textContent = formatNumber(aqi, 0);
         els.summaryAqiDetail.textContent =
           state.lang === "tr"
@@ -1985,30 +2113,45 @@
             : "US AQI estimate – higher means more health risk.";
       } else {
         els.summaryAqi.textContent = "–";
-        els.summaryAqiDetail.textContent = "–";
+        els.summaryAqiDetail.textContent = hasAnyAir ? "–" : "–";
       }
 
-      const pm10 = hourlyAir.pm10?.[len - 1] ?? null;
-      const pm25 = hourlyAir.pm2_5?.[len - 1] ?? null;
+      const pm10 = pickAirValue(hourlyAir.pm10, pmLastIdx);
+      const pm25 = pickAirValue(hourlyAir.pm2_5, pmLastIdx);
       els.summaryAirPm.textContent =
         pm25 != null && pm10 != null
           ? `${formatNumber(pm25, 1)} / ${formatNumber(pm10, 1)}`
+          : pm25 != null
+          ? `${formatNumber(pm25, 1)} / –`
+          : pm10 != null
+          ? `– / ${formatNumber(pm10, 1)}`
           : "–";
       els.summaryAirPmDetail.textContent =
         state.lang === "tr"
           ? "PM2.5 akciğerlere en derin inen parçacıklardır."
           : "PM2.5 are the tiniest particles that reach deep into lungs.";
 
-      const ozone = hourlyAir.ozone?.[len - 1] ?? null;
-      const co = hourlyAir.carbon_monoxide?.[len - 1] ?? null;
+      const ozone = pickAirValue(hourlyAir.ozone, preferredLastIdx);
+      const co = pickAirValue(hourlyAir.carbon_monoxide, preferredLastIdx);
       els.summaryAirGas.textContent =
         ozone != null && co != null
           ? `O₃ ${formatNumber(ozone, 1)}, CO ${formatNumber(co, 1)}`
+          : ozone != null
+          ? `O₃ ${formatNumber(ozone, 1)}`
+          : co != null
+          ? `CO ${formatNumber(co, 1)}`
           : "–";
       els.summaryAirGasDetail.textContent =
         state.lang === "tr"
           ? "Ozon ve karbon monoksit, şehirlerde sağlık riskini artırır."
           : "Ozone and carbon monoxide increase health risks in cities.";
+
+      if (!hasAnyAir) {
+        els.summaryAqi.textContent = "–";
+        els.summaryAqiDetail.textContent = "–";
+        els.summaryAirPm.textContent = "–";
+        els.summaryAirGas.textContent = "–";
+      }
 
       const elevVal = Array.isArray(elevation?.elevation)
         ? elevation.elevation[0]
@@ -2020,18 +2163,6 @@
           : "Elevation affects temperature and flood risk.";
 
       updateClimateTrendSummary(location, climate);
-    }
-
-    function applyScenarioToFuture(baselineTemps, futureTemps, factor) {
-      const baseAvg = average(baselineTemps);
-      const futureAvg = average(futureTemps);
-      if (baseAvg === null || futureAvg === null) return futureTemps ?? [];
-      const delta = futureAvg - baseAvg;
-      const targetDelta = delta * factor;
-      const offset = targetDelta - delta;
-      return (futureTemps ?? []).map((val) =>
-        Number.isFinite(val) ? val + offset : val
-      );
     }
 
     function getScenarioFactor() {
@@ -2050,8 +2181,9 @@
       }
       const prefix = t("scenario.summaryPrefix");
       const scenarioText = t("scenario.summaryScenario");
+      const periodLabel = t("scenario.periodsComparison");
       const note = t("scenario.educationalNote");
-      els.scenarioSummary.textContent = `${prefix} +${formatNumber(
+      els.scenarioSummary.textContent = `${prefix} ${periodLabel} +${formatNumber(
         delta,
         1
       )} °C. ${scenarioText} +${formatNumber(
@@ -2063,10 +2195,8 @@
     function updateClimateTrendSummary(location, climate) {
       const msgEl = qs("climateTrendStatus");
       state.climateData = climate;
-      if (
-        !climate?.baseline?.daily?.temperature_2m_max ||
-        !climate?.future?.daily?.temperature_2m_max
-      ) {
+      const periods = climate?.periods ?? [];
+      if (!periods.length) {
         els.summaryClimateTrend.textContent = "–";
         els.summaryClimateTrendDetail.textContent = "–";
         msgEl.textContent =
@@ -2077,12 +2207,11 @@
         return;
       }
 
-      const baseTemps = climate.baseline.daily.temperature_2m_max ?? [];
-      const futureTemps = climate.future.daily.temperature_2m_max ?? [];
-      const baseAvg = average(baseTemps);
-      const futureAvg = average(futureTemps);
+      const baseAvg = periods[0]?.avgMax ?? null;
+      const midAvg = periods[1]?.avgMax ?? null;
+      const lastAvg = periods[periods.length - 1]?.avgMax ?? null;
 
-      if (baseAvg === null || futureAvg === null) {
+      if (baseAvg === null || lastAvg === null) {
         els.summaryClimateTrend.textContent = "–";
         els.summaryClimateTrendDetail.textContent = "–";
         msgEl.textContent =
@@ -2092,28 +2221,39 @@
         return;
       }
 
-      const delta = futureAvg - baseAvg;
       const factor = getScenarioFactor();
-      const scenarioDelta = delta * factor;
-      els.summaryClimateTrend.textContent = `${formatNumber(delta, 1)} °C`;
-      const modelLabel = t("climate.modelDetail");
-      const baselineLabel = t("climate.baselineLabel");
-      const scenarioLabel = t("climate.scenarioLabel");
-      els.summaryClimateTrendDetail.textContent = `${modelLabel} ${baselineLabel} +${formatNumber(
-        delta,
-        1
-      )} °C, ${scenarioLabel} +${formatNumber(scenarioDelta, 1)} °C.`;
+      const adjustedLast = baseAvg + (lastAvg - baseAvg) * factor;
+      const deltaRaw = lastAvg - baseAvg;
+      const deltaScenario = adjustedLast - baseAvg;
+      const decades = 9;
+      const deltaPerDecade = deltaScenario / decades;
 
-      msgEl.textContent =
-        state.lang === "tr"
-          ? `${location.name} için yaklaşık +${formatNumber(
-              delta,
-              1
-            )} °C ısınma (1990 → 2050).`
-          : `Around +${formatNumber(delta, 1)} °C warming for ${location.name} (1990 → 2050).`;
+      els.summaryClimateTrend.textContent = `${formatNumber(deltaScenario, 1)} °C`;
+      const intro = t("climate.periodsExplain");
+      const detailPrefix = t("climate.periodsDetailPrefix");
+      const detailLine = `${detailPrefix} ${periods[0].label} ${formatNumber(
+        baseAvg,
+        1
+      )} °C, ${periods[1]?.label ?? ""} ${formatNumber(midAvg, 1)} °C, ${
+        periods[2]?.label ?? periods[periods.length - 1].label
+      } ${formatNumber(adjustedLast, 1)} °C.`;
+      els.summaryClimateTrendDetail.textContent = `${intro} ${detailLine} ${t(
+        "climate.periodsDeltaLabel"
+      )} ${formatNumber(deltaScenario, 1)} °C (${formatNumber(
+        deltaPerDecade,
+        2
+      )} °C/decade).`;
+
+      msgEl.textContent = `${t("climate.periodsStatus")} ${periods[0].label} ${formatNumber(
+        baseAvg,
+        1
+      )} °C → ${periods[periods.length - 1].label} ${formatNumber(
+        adjustedLast,
+        1
+      )} °C (${t("climate.modeledApprox")}).`;
 
       buildClimateTrendChart(climate, factor);
-      updateScenarioSummary(delta, scenarioDelta);
+      updateScenarioSummary(deltaRaw, deltaScenario);
     }
 
     function updateMarineUI(marine) {
@@ -2143,9 +2283,26 @@
           : "Sea surface temperature influences sea level and storms.";
     }
 
-    function updateFloodUI(flood) {
+    function updateFloodUI(flood, riskMetrics) {
       if (!els.summaryFlood || !els.summaryFloodDetail) return;
       if (!flood || !flood.hourly) {
+        const heavy = riskMetrics?.rain;
+        if (heavy && (heavy.maxPrecip !== null || heavy.totalRain !== null)) {
+          const valueText = heavy.maxPrecip !== null
+            ? `${formatNumber(heavy.maxPrecip, 1)} mm/h`
+            : `${formatNumber(heavy.totalRain, 1)} mm`;
+          const label =
+            heavy.score !== null
+              ? getRiskLabel(heavy.score, { low: 20, high: 60 })
+              : null;
+          els.summaryFlood.textContent = valueText;
+          const prefix = t("risk.derivedRain");
+          const note = t("risk.combinedNote");
+          els.summaryFloodDetail.textContent = label
+            ? `${prefix} ${label}. ${note}`
+            : `${prefix} ${valueText}. ${note}`;
+          return;
+        }
         els.summaryFlood.textContent = "–";
         els.summaryFloodDetail.textContent =
           state.lang === "tr"
@@ -2165,14 +2322,28 @@
       const label = getRiskLabel(val, { low: 0.3, high: 0.7 });
       const prefix = t("risk.floodPrefix");
       const baseText = t("risk.floodBase");
+      const note = t("risk.combinedNote");
       els.summaryFloodDetail.textContent = label
-        ? `${baseText} ${prefix} ${label}.`
-        : `${baseText} ${t("risk.noFloodData")}`;
+        ? `${baseText} ${prefix} ${label}. ${note}`
+        : `${baseText} ${t("risk.noFloodData")} ${note}`;
     }
 
-    function updateEnsembleUI(ensemble) {
+    function updateEnsembleUI(ensemble, riskMetrics) {
       if (!els.summaryEnsemble || !els.summaryEnsembleDetail) return;
       if (!ensemble || !ensemble.hourly) {
+        const wind = riskMetrics?.wind;
+        if (wind && (wind.maxWind !== null || wind.maxGust !== null)) {
+          const windVal = wind.maxGust ?? wind.maxWind;
+          const label =
+            wind.score !== null
+              ? getRiskLabel(wind.score, { low: 15, high: 45 })
+              : null;
+          els.summaryEnsemble.textContent = `${formatNumber(windVal, 1)} m/s`;
+          els.summaryEnsembleDetail.textContent = label
+            ? `${t("risk.windLabel")} ${label}. ${t("risk.combinedNote")}`
+            : `${t("risk.windLabel")} ${formatNumber(windVal, 1)} m/s.`;
+          return;
+        }
         els.summaryEnsemble.textContent = "–";
         els.summaryEnsembleDetail.textContent =
           state.lang === "tr"
@@ -2198,7 +2369,61 @@
       const riskPrefix = t("risk.heavyRainPrefix");
       els.summaryEnsembleDetail.textContent = label
         ? `${baseText} ${formatNumber(avg, 2)} mm. ${riskPrefix} ${label}.`
-        : `${baseText} ${formatNumber(avg, 2)} mm.`;
+        : `${baseText} ${formatNumber(avg, 2)} mm. ${t("risk.combinedNote")}`;
+    }
+
+    function updateRiskSummary(riskMetrics) {
+      if (!els.riskSummaryText) return;
+      if (!riskMetrics) {
+        els.riskSummaryText.textContent = t("risk.combinedNote");
+        return;
+      }
+
+      const options = [
+        {
+          key: "heat",
+          label: t("risk.heatLabel"),
+          score: riskMetrics.heat?.score,
+          detail:
+            riskMetrics.heat?.maxTemp !== null
+              ? `${formatNumber(riskMetrics.heat.maxTemp, 1)} °C`
+              : null,
+        },
+        {
+          key: "wind",
+          label: t("risk.windLabel"),
+          score: riskMetrics.wind?.score,
+          detail:
+            riskMetrics.wind?.maxGust !== null
+              ? `${formatNumber(riskMetrics.wind.maxGust, 1)} m/s`
+              : riskMetrics.wind?.maxWind !== null
+              ? `${formatNumber(riskMetrics.wind.maxWind, 1)} m/s`
+              : null,
+        },
+        {
+          key: "rain",
+          label: t("risk.rainLabel"),
+          score: riskMetrics.rain?.score,
+          detail:
+            riskMetrics.rain?.maxPrecip !== null
+              ? `${formatNumber(riskMetrics.rain.maxPrecip, 1)} mm/h`
+              : riskMetrics.rain?.totalRain !== null
+              ? `${formatNumber(riskMetrics.rain.totalRain, 1)} mm`
+              : null,
+        },
+      ].filter((o) => o.score !== null && o.score !== undefined);
+
+      if (!options.length) {
+        els.riskSummaryText.textContent = t("risk.combinedNote");
+        return;
+      }
+
+      options.sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
+      const top = options[0];
+      const detailText = top.detail ? ` (${top.detail})` : "";
+      els.riskSummaryText.textContent = `${t("risk.summaryPrefix")} ${top.label}${detailText}. ${t(
+        "risk.combinedNote"
+      )}`;
     }
 
     // ============================
@@ -2227,11 +2452,13 @@
         const marine = marineRes.status === "fulfilled" ? marineRes.value : null;
         const flood = floodRes.status === "fulfilled" ? floodRes.value : null;
         const ensemble = ensembleRes.status === "fulfilled" ? ensembleRes.value : null;
+        const riskMetrics = computeRiskMetrics(forecast);
 
         updateOverviewUI(location, forecast, air, elevation, climate);
         updateMarineUI(marine);
-        updateFloodUI(flood);
-        updateEnsembleUI(ensemble);
+        updateFloodUI(flood, riskMetrics);
+        updateEnsembleUI(ensemble, riskMetrics);
+        updateRiskSummary(riskMetrics);
 
         state.lastUpdatedAt = new Date();
         renderLastUpdated();
