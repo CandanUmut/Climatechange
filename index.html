@@ -1,0 +1,1618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Global Warming Awareness Dashboard · Küresel Isınma Farkındalık Paneli</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+  <style>
+    :root {
+      --bg: #020617;
+      --bg-soft: #020617;
+      --panel: rgba(15, 23, 42, 0.98);
+      --card: #0b1220;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.14);
+      --danger: #ef4444;
+      --text: #e5e7eb;
+      --text-soft: #9ca3af;
+      --border: #1f2937;
+      --radius: 14px;
+      --shadow: 0 18px 45px rgba(15, 23, 42, 0.85);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #020617 0, #000 45%, #020617 100%);
+      color: var(--text);
+    }
+
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: stretch;
+      padding: 16px;
+    }
+
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      max-width: 1240px;
+      max-height: 840px;
+      background: radial-gradient(circle at top left, #020617, #020617 40%, #020617 100%);
+      border-radius: 22px;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+    }
+
+    @media (max-width: 900px) {
+      .app-shell {
+        max-height: none;
+        height: auto;
+      }
+      body {
+        padding: 8px;
+      }
+    }
+
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.24);
+      background: linear-gradient(
+        to right,
+        rgba(15, 23, 42, 0.96),
+        rgba(15, 23, 42, 0.92)
+      );
+    }
+
+    .app-title-block {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-pill {
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: radial-gradient(circle at 30% 30%, #f97316, #ea580c 40%, #020617 80%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #f9fafb;
+      box-shadow: 0 0 25px rgba(248, 250, 252, 0.2);
+    }
+
+    .app-title-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .app-title-main {
+      font-size: 17px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+    }
+
+    .app-title-sub {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .lang-toggle {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.6);
+    }
+
+    .lang-btn {
+      border: none;
+      outline: none;
+      background: transparent;
+      color: var(--text-soft);
+      font-size: 11px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .lang-btn.active {
+      background: var(--accent);
+      color: #020617;
+      font-weight: 600;
+    }
+
+    .user-name-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .user-name-wrap span {
+      color: var(--text-soft);
+    }
+
+    .user-name-input {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: var(--text);
+      padding: 4px 10px;
+      font-size: 11px;
+      min-width: 120px;
+    }
+
+    .user-name-input::placeholder {
+      color: rgba(148, 163, 184, 0.7);
+    }
+
+    .app-body {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      flex: 1;
+      min-height: 0;
+    }
+
+    @media (max-width: 900px) {
+      .app-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+      }
+    }
+
+    .sidebar {
+      border-right: 1px solid rgba(148, 163, 184, 0.18);
+      background: radial-gradient(
+        circle at top left,
+        rgba(15, 23, 42, 0.96),
+        rgba(15, 23, 42, 0.99)
+      );
+      padding: 14px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .sidebar-section-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: var(--text-soft);
+      margin-bottom: 2px;
+    }
+
+    .nav-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-btn {
+      border-radius: 10px;
+      padding: 7px 9px;
+      font-size: 12px;
+      border: 1px solid transparent;
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: all 0.14s ease-out;
+    }
+
+    .nav-btn span.label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-btn span.emoji {
+      font-size: 14px;
+    }
+
+    .nav-btn.active {
+      border-color: rgba(56, 189, 248, 0.95);
+      background: radial-gradient(circle at left, #0f172a, #020617);
+      color: var(--text);
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4);
+    }
+
+    .nav-btn:hover {
+      border-color: rgba(56, 189, 248, 0.6);
+      color: #e5e7eb;
+    }
+
+    .sidebar-footnote {
+      margin-top: auto;
+      font-size: 10px;
+      color: var(--text-soft);
+      border-top: 1px dashed rgba(148, 163, 184, 0.35);
+      padding-top: 6px;
+    }
+
+    .main {
+      padding: 14px;
+      background: radial-gradient(circle at top, #020617, #020617 55%, #020617 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .panel-row {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 10px;
+    }
+
+    @media (max-width: 900px) {
+      .panel-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: linear-gradient(
+        to bottom,
+        rgba(15, 23, 42, 0.96),
+        rgba(15, 23, 42, 0.98)
+      );
+      border-radius: 16px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.8);
+      padding: 12px 12px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: var(--accent-soft);
+      color: #e0f2fe;
+      border: 1px solid rgba(56, 189, 248, 0.5);
+    }
+
+    .card-subtitle {
+      font-size: 11px;
+      color: var(--text-soft);
+    }
+
+    .chips-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      font-size: 11px;
+    }
+
+    .chip {
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      background: rgba(15, 23, 42, 0.92);
+      color: var(--text-soft);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .chip strong {
+      color: #e5e7eb;
+      font-weight: 500;
+    }
+
+    .overview-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .metric-card {
+      border-radius: 12px;
+      padding: 7px 8px;
+      background: radial-gradient(circle at top left, #020617, #020617 70%);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      font-size: 11px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .metric-label {
+      color: var(--text-soft);
+    }
+
+    .metric-value {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .metric-delta-warm {
+      font-size: 11px;
+      color: #f97316;
+    }
+
+    .metric-delta-cool {
+      font-size: 11px;
+      color: #22c55e;
+    }
+
+    .city-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-top: 4px;
+    }
+
+    .select {
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      color: var(--text);
+      font-size: 11px;
+      padding: 4px 9px;
+      min-width: 160px;
+    }
+
+    .btn {
+      border-radius: 999px;
+      border: 1px solid rgba(56, 189, 248, 0.9);
+      background: radial-gradient(circle at top left, #0ea5e9, #0369a1);
+      color: #0b1120;
+      padding: 5px 11px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 0 0 1px rgba(8, 47, 73, 0.7), 0 8px 20px rgba(8, 47, 73, 0.6);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+      box-shadow: none;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border-radius: 999px;
+      border: 1px dashed rgba(148, 163, 184, 0.6);
+      color: var(--text-soft);
+      font-size: 11px;
+      padding: 4px 8px;
+    }
+
+    .chart-container {
+      position: relative;
+      width: 100%;
+      height: 220px;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #map {
+      width: 100%;
+      height: 220px;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
+    .section {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      height: 100%;
+    }
+
+    .section.active {
+      display: flex;
+    }
+
+    .scrollable {
+      overflow: auto;
+    }
+
+    .scenario-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 8px;
+      font-size: 11px;
+    }
+
+    .scenario-card {
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.28);
+      padding: 8px 9px;
+      background: radial-gradient(circle at top, #020617, #020617 70%);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .scenario-title {
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    .scenario-tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: var(--text-soft);
+    }
+
+    .scenario-body {
+      color: var(--text-soft);
+    }
+
+    .about-text {
+      font-size: 11px;
+      color: var(--text-soft);
+      line-height: 1.5;
+    }
+
+    .about-text strong {
+      color: #e5e7eb;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .status-text {
+      font-size: 11px;
+      color: var(--text-soft);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+    }
+
+    .status-dot.warn {
+      background: #f97316;
+      box-shadow: 0 0 0 3px rgba(248, 144, 48, 0.3);
+    }
+
+    .status-dot.err {
+      background: #ef4444;
+      box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.3);
+    }
+
+    .status-text strong {
+      color: #e5e7eb;
+    }
+
+    .small-muted {
+      font-size: 10px;
+      color: var(--text-soft);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-title-block">
+        <div class="logo-pill">°C</div>
+        <div class="app-title-text">
+          <div class="app-title-main" data-i18n-key="app_title"></div>
+          <div class="app-title-sub" data-i18n-key="app_subtitle"></div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="user-name-wrap">
+          <span data-i18n-key="hello_label"></span>
+          <input
+            id="user-name-input"
+            class="user-name-input"
+            type="text"
+            maxlength="32"
+            placeholder="Your name / İsmin"
+          />
+        </div>
+        <div class="lang-toggle">
+          <button class="lang-btn active" data-lang="en">EN</button>
+          <button class="lang-btn" data-lang="tr">TR</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="app-body">
+      <aside class="sidebar">
+        <div>
+          <div class="sidebar-section-label" data-i18n-key="nav_section_main"></div>
+          <div class="nav-group">
+            <button class="nav-btn active" data-section="overview">
+              <span class="label">
+                <span class="emoji">🌍</span>
+                <span data-i18n-key="nav_overview"></span>
+              </span>
+              <span>1</span>
+            </button>
+            <button class="nav-btn" data-section="city">
+              <span class="label">
+                <span class="emoji">🏙️</span>
+                <span data-i18n-key="nav_city"></span>
+              </span>
+              <span>2</span>
+            </button>
+            <button class="nav-btn" data-section="scenarios">
+              <span class="label">
+                <span class="emoji">📈</span>
+                <span data-i18n-key="nav_scenarios"></span>
+              </span>
+              <span>3</span>
+            </button>
+            <button class="nav-btn" data-section="about">
+              <span class="label">
+                <span class="emoji">ℹ️</span>
+                <span data-i18n-key="nav_about"></span>
+              </span>
+              <span>4</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="sidebar-footnote">
+          <div class="status-text">
+            <div class="status-dot" id="status-dot"></div>
+            <span id="status-text"></span>
+          </div>
+          <div class="small-muted" data-i18n-key="sidebar_note"></div>
+        </div>
+      </aside>
+
+      <main class="main">
+        <!-- OVERVIEW SECTION -->
+        <section class="section active scrollable" id="section-overview">
+          <div class="panel-row">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">
+                    <span>📊</span>
+                    <span data-i18n-key="overview_title"></span>
+                  </div>
+                  <div class="card-subtitle" data-i18n-key="overview_subtitle"></div>
+                </div>
+                <span class="badge" data-i18n-key="badge_live"></span>
+              </div>
+
+              <div class="chips-row">
+                <span class="chip">
+                  <span>🔥</span><strong data-i18n-key="chip_temp"></strong>
+                </span>
+                <span class="chip">
+                  <span>🌧️</span><strong data-i18n-key="chip_rain"></strong>
+                </span>
+                <span class="chip">
+                  <span>📆</span><strong data-i18n-key="chip_period"></strong>
+                </span>
+              </div>
+
+              <div class="overview-metrics" id="overview-metrics">
+                <div class="metric-card">
+                  <div class="metric-label" data-i18n-key="metric_global_baseline"></div>
+                  <div class="metric-value" id="metric-global-baseline">–</div>
+                  <div class="metric-delta-warm" id="metric-global-baseline-note">1951–1980</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label" data-i18n-key="metric_global_now"></div>
+                  <div class="metric-value" id="metric-global-now">–</div>
+                  <div class="metric-delta-warm" id="metric-global-delta">+– °C</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label" data-i18n-key="metric_city_now"></div>
+                  <div class="metric-value" id="metric-city-now">–</div>
+                  <div class="metric-delta-warm" id="metric-city-delta">–</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label" data-i18n-key="metric_future"></div>
+                  <div class="metric-value" id="metric-future">–</div>
+                  <div class="metric-delta-warm" id="metric-future-note">–</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">
+                    <span>🌎</span>
+                    <span data-i18n-key="map_title"></span>
+                  </div>
+                  <div class="card-subtitle" data-i18n-key="map_subtitle"></div>
+                </div>
+                <button class="btn-ghost" id="btn-zoom-world">
+                  🌐 <span data-i18n-key="map_reset"></span>
+                </button>
+              </div>
+              <div id="map"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CITY EXPLORER SECTION -->
+        <section class="section scrollable" id="section-city">
+          <div class="panel-row">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">
+                    <span>🏙️</span>
+                    <span data-i18n-key="city_title"></span>
+                  </div>
+                  <div class="card-subtitle" data-i18n-key="city_subtitle"></div>
+                </div>
+                <span class="badge" data-i18n-key="badge_city"></span>
+              </div>
+
+              <div class="city-controls">
+                <select id="city-select" class="select"></select>
+                <button class="btn" id="btn-load-city">
+                  <span>🔍</span>
+                  <span data-i18n-key="btn_load_city"></span>
+                </button>
+                <button class="btn-ghost" id="btn-use-last">
+                  ♻️ <span data-i18n-key="btn_use_last"></span>
+                </button>
+              </div>
+
+              <div class="chips-row" style="margin-top:6px;">
+                <span class="chip">
+                  <span>📍</span><span id="city-meta-coords">–</span>
+                </span>
+                <span class="chip">
+                  <span>🧊</span><span id="city-meta-baseline">–</span>
+                </span>
+                <span class="chip">
+                  <span>🔥</span><span id="city-meta-current">–</span>
+                </span>
+              </div>
+
+              <div class="chart-container" style="margin-top:6px;">
+                <canvas id="chart-annual"></canvas>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">
+                    <span>📈</span>
+                    <span data-i18n-key="delta_title"></span>
+                  </div>
+                  <div class="card-subtitle" data-i18n-key="delta_subtitle"></div>
+                </div>
+              </div>
+
+              <div class="chart-container">
+                <canvas id="chart-bars"></canvas>
+              </div>
+
+              <div class="small-muted" id="delta-summary" style="margin-top:4px;">
+                –
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SCENARIOS SECTION -->
+        <section class="section scrollable" id="section-scenarios">
+          <div class="panel-row">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">
+                    <span>📉</span>
+                    <span data-i18n-key="scenarios_title"></span>
+                  </div>
+                  <div class="card-subtitle" data-i18n-key="scenarios_subtitle"></div>
+                </div>
+              </div>
+              <div class="scenario-list">
+                <div class="scenario-card">
+                  <div class="scenario-title" data-i18n-key="scenario_1_title"></div>
+                  <div class="scenario-tag" data-i18n-key="scenario_1_tag"></div>
+                  <div class="scenario-body" data-i18n-key="scenario_1_body"></div>
+                </div>
+                <div class="scenario-card">
+                  <div class="scenario-title" data-i18n-key="scenario_2_title"></div>
+                  <div class="scenario-tag" data-i18n-key="scenario_2_tag"></div>
+                  <div class="scenario-body" data-i18n-key="scenario_2_body"></div>
+                </div>
+                <div class="scenario-card">
+                  <div class="scenario-title" data-i18n-key="scenario_3_title"></div>
+                  <div class="scenario-tag" data-i18n-key="scenario_3_tag"></div>
+                  <div class="scenario-body" data-i18n-key="scenario_3_body"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">
+                    <span>🧭</span>
+                    <span data-i18n-key="actions_title"></span>
+                  </div>
+                  <div class="card-subtitle" data-i18n-key="actions_subtitle"></div>
+                </div>
+              </div>
+              <ul class="about-text" style="margin:4px 0 0 14px;">
+                <li data-i18n-key="actions_1"></li>
+                <li data-i18n-key="actions_2"></li>
+                <li data-i18n-key="actions_3"></li>
+                <li data-i18n-key="actions_4"></li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- ABOUT SECTION -->
+        <section class="section scrollable" id="section-about">
+          <div class="panel-row">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <div class="card-title">
+                    <span>ℹ️</span>
+                    <span data-i18n-key="about_title"></span>
+                  </div>
+                  <div class="card-subtitle" data-i18n-key="about_subtitle"></div>
+                </div>
+              </div>
+              <div class="about-text" style="margin-top:4px;">
+                <p data-i18n-key="about_p1"></p>
+                <p data-i18n-key="about_p2"></p>
+                <p data-i18n-key="about_p3"></p>
+                <p data-i18n-key="about_p4"></p>
+                <p class="small-muted" data-i18n-key="about_data_note"></p>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title">
+                  <span>🧪</span>
+                  <span data-i18n-key="about_how_title"></span>
+                </div>
+              </div>
+              <div class="about-text" style="margin-top:4px;">
+                <p data-i18n-key="about_how_p1"></p>
+                <p data-i18n-key="about_how_p2"></p>
+                <p data-i18n-key="about_how_p3"></p>
+              </div>
+              <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
+                <span class="pill">
+                  <span>☁️</span><span>Open-Meteo Climate</span>
+                </span>
+                <span class="pill">
+                  <span>🗃️</span><span>Supabase cache</span>
+                </span>
+                <span class="pill">
+                  <span>👤</span><span>Local storage</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- External libs -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <!-- App logic -->
+  <script type="module">
+    import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm";
+
+    // ====== CONFIG ======
+    const SUPABASE_URL = "https://tkggowekxmnlixwinszl.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrZ2dvd2VreG1ubGl4d2luc3psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3MzI1NjcsImV4cCI6MjA4MDMwODU2N30.y1GSvarl9YyBqMaP8x6SXeD88EJ10gjee4rlr6oLyZg";
+    const hasSupabaseConfig =
+      SUPABASE_URL.startsWith("http") && !SUPABASE_ANON_KEY.startsWith("YOUR_");
+
+    const supabase = hasSupabaseConfig
+      ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+
+    const OPEN_METEO_BASE = "https://climate-api.open-meteo.com/v1/climate";
+
+    // Famous cities – you can add/remove easily
+    const CITIES = [
+      { slug: "istanbul", name_en: "Istanbul", name_tr: "İstanbul", country: "Türkiye", lat: 41.0082, lon: 28.9784 },
+      { slug: "new_york", name_en: "New York", name_tr: "New York", country: "USA", lat: 40.7128, lon: -74.0060 },
+      { slug: "london", name_en: "London", name_tr: "Londra", country: "UK", lat: 51.5074, lon: -0.1278 },
+      { slug: "paris", name_en: "Paris", name_tr: "Paris", country: "France", lat: 48.8566, lon: 2.3522 },
+      { slug: "tokyo", name_en: "Tokyo", name_tr: "Tokyo", country: "Japan", lat: 35.6895, lon: 139.6917 },
+      { slug: "sydney", name_en: "Sydney", name_tr: "Sidney", country: "Australia", lat: -33.8688, lon: 151.2093 },
+      { slug: "cairo", name_en: "Cairo", name_tr: "Kahire", country: "Egypt", lat: 30.0444, lon: 31.2357 },
+      { slug: "lagos", name_en: "Lagos", name_tr: "Lagos", country: "Nigeria", lat: 6.5244, lon: 3.3792 },
+      { slug: "sao_paulo", name_en: "São Paulo", name_tr: "Sao Paulo", country: "Brazil", lat: -23.5505, lon: -46.6333 },
+      { slug: "delhi", name_en: "Delhi", name_tr: "Delhi", country: "India", lat: 28.7041, lon: 77.1025 },
+      { slug: "mexico_city", name_en: "Mexico City", name_tr: "Meksiko", country: "Mexico", lat: 19.4326, lon: -99.1332 },
+      { slug: "beijing", name_en: "Beijing", name_tr: "Pekin", country: "China", lat: 39.9042, lon: 116.4074 },
+      { slug: "berlin", name_en: "Berlin", name_tr: "Berlin", country: "Germany", lat: 52.52, lon: 13.4050 },
+      { slug: "moscow", name_en: "Moscow", name_tr: "Moskova", country: "Russia", lat: 55.7558, lon: 37.6173 }
+    ];
+
+    // ====== I18N ======
+    const I18N = {
+      en: {
+        app_title: "Global Warming Awareness Dashboard",
+        app_subtitle: "Understand your city’s warming trend from 1950–2050",
+        hello_label: "Hi,",
+        nav_section_main: "Navigation",
+        nav_overview: "Global overview",
+        nav_city: "City explorer",
+        nav_scenarios: "Scenarios & action",
+        nav_about: "About the data",
+        sidebar_note:
+          "Data comes from climate models, not direct measurements. Use it to see trends, not exact daily weather.",
+        overview_title: "How fast is the planet heating?",
+        overview_subtitle:
+          "We compare a cooler baseline period (1951–1980) with recent decades and future projections.",
+        badge_live: "Live climate API",
+        chip_temp: "Daily mean temperature",
+        chip_rain: "Daily precipitation",
+        chip_period: "1950–2050 time window",
+        metric_global_baseline: "Global-style baseline (example)",
+        metric_global_now: "Recent 30-year mean (example)",
+        metric_city_now: "Selected city recent mean",
+        metric_future: "Future projection (example city)",
+        map_title: "Map of sample cities",
+        map_subtitle:
+          "Pick a city in the explorer to zoom. Markers here match the dashboard list.",
+        map_reset: "Reset view",
+        city_title: "City warming explorer",
+        city_subtitle:
+          "Pick a city and see how annual average temperature changes across decades.",
+        badge_city: "Per-city climate trend",
+        btn_load_city: "Load data",
+        btn_use_last: "Use last city",
+        delta_title: "Baseline vs now vs future",
+        delta_subtitle:
+          "We compute three 30-year windows: baseline (1951–1980), recent (1991–2020), and future (2031–2050).",
+        scenarios_title: "Scenarios: Which world do we choose?",
+        scenarios_subtitle:
+          "The same physics drives warming everywhere; our choices decide how far it goes.",
+        scenario_1_title: "Scenario A – We act fast",
+        scenario_1_tag: "Strong mitigation, lower warming",
+        scenario_1_body:
+          "Rapidly cutting fossil fuel use, protecting forests, and electrifying transport can keep additional warming smaller. Every tenth of a degree avoided means fewer heatwaves, crop failures, and ecosystem losses.",
+        scenario_2_title: "Scenario B – Business as usual",
+        scenario_2_tag: "High emissions path",
+        scenario_2_body:
+          "If emissions keep rising, many cities in this dashboard will see several extra °C by 2050. Heat, extreme rain, droughts, and sea-level rise all intensify, hitting vulnerable communities first.",
+        scenario_3_title: "Scenario C – Local action",
+        scenario_3_tag: "City-scale solutions",
+        scenario_3_body:
+          "Even while global policy is slow, cities can upgrade public transit, cool buildings, plant trees, and protect water. Use this dashboard to start conversations where you live.",
+        actions_title: "What can one person actually do?",
+        actions_subtitle:
+          "You can’t fix everything alone – but you absolutely change your own impact and influence others.",
+        actions_1: "Shift one regular trip from car to walking, bike, or public transport.",
+        actions_2: "Lower energy waste at home: efficient bulbs, turning devices fully off, moderating heating/cooling.",
+        actions_3: "Support honest climate information, not greenwashing. Share tools like this dashboard.",
+        actions_4: "Vote, work, or volunteer in ways that push for clean, fair energy systems.",
+        about_title: "What this app is – and is not",
+        about_subtitle: "A focused, city-level lens on global warming",
+        about_p1:
+          "This app does not show today’s local weather. Instead, it visualizes long-term climate model data for different cities, from 1950 through 2050.",
+        about_p2:
+          "We use daily climate model output and aggregate it into yearly averages for each city. Then we compare three periods: baseline (1951–1980), recent (1991–2020), and a possible future slice (2031–2050).",
+        about_p3:
+          "Climate models are not perfect and never will be. Still, they are very powerful at showing trends and ranges of possible futures under continued warming.",
+        about_p4:
+          "Use these graphs as a starting point for thinking, learning, and talking with others about the world you want to help build.",
+        about_data_note:
+          "Data source: downscaled CMIP6 climate models via Open-Meteo Climate API. Values are modelled, not measured station data.",
+        about_how_title: "How the data pipeline works",
+        about_how_p1:
+          "When you choose a city, the app first asks Supabase if we already stored its annual climate series.",
+        about_how_p2:
+          "If not, the browser directly calls the Open-Meteo Climate API, aggregates the raw daily values into yearly means, and saves them in the Supabase cache.",
+        about_how_p3:
+          "Your name and last selected city stay in your browser only (localStorage) – they are not sent to Supabase.",
+      },
+      tr: {
+        app_title: "Küresel Isınma Farkındalık Paneli",
+        app_subtitle: "Şehrinin 1950–2050 arasındaki ısınma trendini gör",
+        hello_label: "Merhaba,",
+        nav_section_main: "Gezinti",
+        nav_overview: "Küresel görünüm",
+        nav_city: "Şehir keşfi",
+        nav_scenarios: "Senaryolar ve adım at",
+        nav_about: "Veri hakkında",
+        sidebar_note:
+          "Veriler doğrudan ölçüm değil, iklim modellerinden geliyor. Günlük hava durumu değil, uzun vadeli trend için kullan.",
+        overview_title: "Dünya ne kadar hızlı ısınıyor?",
+        overview_subtitle:
+          "Daha serin bir referans dönemi (1951–1980) ile son yıllar ve gelecekteki projeksiyonları karşılaştırıyoruz.",
+        badge_live: "Canlı iklim API",
+        chip_temp: "Günlük ortalama sıcaklık",
+        chip_rain: "Günlük yağış",
+        chip_period: "1950–2050 zaman aralığı",
+        metric_global_baseline: "Küresel benzeri referans (örnek)",
+        metric_global_now: "Son 30 yıl ortalaması (örnek)",
+        metric_city_now: "Seçilen şehir son ortalama",
+        metric_future: "Gelecek projeksiyonu (örnek şehir)",
+        map_title: "Örnek şehirler haritası",
+        map_subtitle:
+          "Keşif kısmından şehir seçince harita oraya odaklanır. İşaretçiler listedeki şehirlerle eşleşir.",
+        map_reset: "Haritayı sıfırla",
+        city_title: "Şehir ısınma keşfi",
+        city_subtitle:
+          "Bir şehir seç ve yıllık ortalama sıcaklığın on yıllar boyunca nasıl değiştiğini gör.",
+        badge_city: "Şehir bazlı iklim trendi",
+        btn_load_city: "Veriyi yükle",
+        btn_use_last: "Son şehri kullan",
+        delta_title: "Referans – şimdi – gelecek",
+        delta_subtitle:
+          "Üç adet 30 yıllık pencere kullanıyoruz: referans (1951–1980), yakın dönem (1991–2020) ve gelecek (2031–2050).",
+        scenarios_title: "Senaryolar: Hangi dünyayı seçiyoruz?",
+        scenarios_subtitle:
+          "Aynı fizik her yerde ısınmayı artırıyor; ne kadar artacağını ise bizim seçimlerimiz belirliyor.",
+        scenario_1_title: "Senaryo A – Hızlı hareket",
+        scenario_1_tag: "Güçlü azaltım, daha düşük ısınma",
+        scenario_1_body:
+          "Fosil yakıt kullanımını hızlıca azaltmak, ormanları korumak ve ulaşımı elektriklendirmek ek ısınmayı daha küçük tutabilir. Kaçınılan her ondalık derece daha az sıcak hava dalgası, ürün kaybı ve ekosistem kaybı demek.",
+        scenario_2_title: "Senaryo B – Olduğu gibi devam",
+        scenario_2_tag: "Yüksek emisyon yolu",
+        scenario_2_body:
+          "Emisyonlar artmaya devam ederse, bu paneldeki birçok şehir 2050’ye kadar birkaç derece daha ısınabilir. Sıcaklık, aşırı yağış, kuraklık ve deniz seviyesi yükselmesi artar ve en kırılgan topluluklar önce etkilenir.",
+        scenario_3_title: "Senaryo C – Yerel hareket",
+        scenario_3_tag: "Şehir ölçeğinde çözümler",
+        scenario_3_body:
+          "Küresel politika yavaş ilerlese bile şehirler ulaşımı, binaları, ağaçlandırmayı ve suyu iyileştirebilir. Bu paneli yaşadığın yer hakkında sohbet başlatmak için kullan.",
+        actions_title: "Tek kişi gerçekten ne yapabilir?",
+        actions_subtitle:
+          "Her şeyi tek başına çözemezsin ama kendi etkin ve çevreni etkileme gücün çok büyük.",
+        actions_1: "Düzenli yaptığın bir yolculuğu arabadan yürüyüşe, bisiklete veya toplu taşımaya kaydır.",
+        actions_2: "Evde enerji israfını azalt: verimli ampuller, cihazları tamamen kapatma, ısıtma/soğutmayı dengeli kullanma.",
+        actions_3: "Gerçekçi iklim bilgisini, yeşil badanalamayı değil, destekle. Bu panel gibi araçları paylaş.",
+        actions_4: "Temiz ve adil enerji sistemleri için oy ver, çalış ya da gönüllü ol.",
+        about_title: "Bu uygulama ne – ve ne değil?",
+        about_subtitle: "Küresel ısınmaya şehir ölçeğinde bir bakış",
+        about_p1:
+          "Bu uygulama bugünün yerel hava durumunu göstermez. Bunun yerine 1950’den 2050’ye kadar çeşitli şehirler için iklim model verilerini görselleştirir.",
+        about_p2:
+          "Günlük model çıktısını alıp şehir başına yıllık ortalamalara çeviriyoruz. Sonra üç dönemi karşılaştırıyoruz: referans (1951–1980), yakın dönem (1991–2020) ve olası gelecek (2031–2050).",
+        about_p3:
+          "İklim modelleri mükemmel değildir ve hiç olmayacak. Yine de özellikle trendleri ve olası gelecek aralıklarını görmek için çok güçlü araçlardır.",
+        about_p4:
+          "Bu grafikleri düşünmek, öğrenmek ve başkalarıyla 'nasıl bir dünya istiyoruz?' diye konuşmak için bir başlangıç noktası olarak kullan.",
+        about_data_note:
+          "Veri kaynağı: Open-Meteo İklim API üzerinden indirgenmiş CMIP6 iklim modelleri. Değerler ölçüm istasyonu değil, model çıktısıdır.",
+        about_how_title: "Veri hattı nasıl çalışıyor?",
+        about_how_p1:
+          "Bir şehir seçtiğinde uygulama önce Supabase’te bu şehrin yıllık serisinin saklanıp saklanmadığına bakar.",
+        about_how_p2:
+          "Yoksa tarayıcı doğrudan Open-Meteo İklim API’ini çağırır, ham günlük değerleri yıllık ortalamalara toplar ve Supabase cache tablosuna kaydeder.",
+        about_how_p3:
+          "İsmin ve son seçtiğin şehir sadece tarayıcında (localStorage) saklanır – Supabase’e gönderilmez.",
+      },
+    };
+
+    let currentLang = localStorage.getItem("gw_lang") || "en";
+
+    function applyI18n(lang) {
+      const dict = I18N[lang];
+      document.querySelectorAll("[data-i18n-key]").forEach((el) => {
+        const key = el.getAttribute("data-i18n-key");
+        if (dict[key]) el.textContent = dict[key];
+      });
+      currentLang = lang;
+      localStorage.setItem("gw_lang", lang);
+    }
+
+    // ====== UI ELEMENTS ======
+    const sections = {
+      overview: document.getElementById("section-overview"),
+      city: document.getElementById("section-city"),
+      scenarios: document.getElementById("section-scenarios"),
+      about: document.getElementById("section-about"),
+    };
+
+    const navButtons = document.querySelectorAll(".nav-btn");
+    navButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const target = btn.getAttribute("data-section");
+        navButtons.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        Object.entries(sections).forEach(([key, section]) => {
+          section.classList.toggle("active", key === target);
+        });
+      });
+    });
+
+    // Language switch
+    document.querySelectorAll(".lang-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const lang = btn.getAttribute("data-lang");
+        document
+          .querySelectorAll(".lang-btn")
+          .forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        applyI18n(lang);
+      });
+    });
+
+    // Apply initial lang
+    applyI18n(currentLang);
+    document
+      .querySelector(`.lang-btn[data-lang="${currentLang}"]`)
+      ?.classList.add("active");
+
+    // User name
+    const nameInput = document.getElementById("user-name-input");
+    const savedName = localStorage.getItem("gw_user_name");
+    if (savedName) nameInput.value = savedName;
+
+    nameInput.addEventListener("change", () => {
+      const val = nameInput.value.trim();
+      if (val.length > 0) {
+        localStorage.setItem("gw_user_name", val);
+      } else {
+        localStorage.removeItem("gw_user_name");
+      }
+    });
+
+    // Status indicator
+    const statusDot = document.getElementById("status-dot");
+    const statusText = document.getElementById("status-text");
+    function setStatus(ok, message, level = "ok") {
+      statusDot.classList.remove("warn", "err");
+      if (level === "warn") statusDot.classList.add("warn");
+      else if (level === "err") statusDot.classList.add("err");
+      statusText.textContent = message;
+    }
+
+    if (supabase) {
+      setStatus(true, "Supabase cache: connected");
+    } else {
+      setStatus(
+        false,
+        "Supabase cache: not configured – only live API will be used.",
+        "warn"
+      );
+    }
+
+    // ====== MAP ======
+    let map;
+    let cityMarker;
+    function initMap() {
+      map = L.map("map", {
+        worldCopyJump: true,
+        zoomControl: false,
+      }).setView([20, 0], 2);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      // Add markers for all cities
+      CITIES.forEach((city) => {
+        const marker = L.circleMarker([city.lat, city.lon], {
+          radius: 5,
+          color: "#38bdf8",
+          fillColor: "#38bdf8",
+          fillOpacity: 0.8,
+        }).addTo(map);
+        marker.bindPopup(`${city.name_en} (${city.country})`);
+      });
+    }
+
+    function focusCityOnMap(city) {
+      if (!map) return;
+      map.setView([city.lat, city.lon], 5);
+      if (cityMarker) {
+        cityMarker.setLatLng([city.lat, city.lon]);
+      } else {
+        cityMarker = L.marker([city.lat, city.lon]).addTo(map);
+      }
+    }
+
+    document.getElementById("btn-zoom-world").addEventListener("click", () => {
+      if (!map) return;
+      map.setView([20, 0], 2);
+    });
+
+    // Init map after DOM paints
+    setTimeout(initMap, 50);
+
+    // ====== CITY SELECT ======
+    const citySelect = document.getElementById("city-select");
+    function fillCitySelect() {
+      citySelect.innerHTML = "";
+      CITIES.forEach((c) => {
+        const opt = document.createElement("option");
+        const label = currentLang === "tr" ? c.name_tr : c.name_en;
+        opt.value = c.slug;
+        opt.textContent = `${label} (${c.country})`;
+        citySelect.appendChild(opt);
+      });
+
+      const last = localStorage.getItem("gw_last_city");
+      if (last && CITIES.find((c) => c.slug === last)) {
+        citySelect.value = last;
+      }
+    }
+    fillCitySelect();
+
+    // When language changes, rebuild options
+    const langObserver = new MutationObserver(() => fillCitySelect());
+    langObserver.observe(
+      document.querySelector('.lang-btn[data-lang="en"]'),
+      { attributes: true }
+    );
+
+    // ====== CHARTS ======
+    let annualChart;
+    let barsChart;
+
+    function ensureAnnualChart(ctx) {
+      if (annualChart) return annualChart;
+      annualChart = new Chart(ctx, {
+        type: "line",
+        data: { labels: [], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              ticks: { color: "#9ca3af" },
+              grid: { color: "rgba(55, 65, 81, 0.5)" },
+            },
+            y: {
+              ticks: { color: "#9ca3af" },
+              grid: { color: "rgba(55, 65, 81, 0.5)" },
+              title: { display: true, text: "°C" },
+            },
+          },
+          plugins: {
+            legend: {
+              labels: { color: "#e5e7eb" },
+            },
+          },
+        },
+      });
+      return annualChart;
+    }
+
+    function ensureBarsChart(ctx) {
+      if (barsChart) return barsChart;
+      barsChart = new Chart(ctx, {
+        type: "bar",
+        data: { labels: ["Baseline", "Recent", "Future"], datasets: [] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              ticks: { color: "#9ca3af" },
+              grid: { display: false },
+            },
+            y: {
+              ticks: { color: "#9ca3af" },
+              grid: { color: "rgba(55, 65, 81, 0.5)" },
+              title: { display: true, text: "°C" },
+            },
+          },
+          plugins: {
+            legend: {
+              labels: { color: "#e5e7eb" },
+            },
+          },
+        },
+      });
+      return barsChart;
+    }
+
+    // ====== DATA HELPERS ======
+    function aggregateAnnual(dates, values) {
+      const perYear = {};
+      for (let i = 0; i < dates.length; i++) {
+        const d = new Date(dates[i]);
+        if (Number.isNaN(d.getTime())) continue;
+        const year = d.getUTCFullYear();
+        const v = values[i];
+        if (v == null) continue;
+        if (!perYear[year]) perYear[year] = { sum: 0, count: 0 };
+        perYear[year].sum += v;
+        perYear[year].count += 1;
+      }
+      const annual = {};
+      Object.entries(perYear).forEach(([year, { sum, count }]) => {
+        annual[year] = sum / count;
+      });
+      return annual;
+    }
+
+    function annualToSortedArray(annual) {
+      const years = Object.keys(annual)
+        .map((y) => Number(y))
+        .sort((a, b) => a - b);
+      return years.map((year) => ({ year, value: annual[year] }));
+    }
+
+    function windowMean(annual, startYear, endYear) {
+      let sum = 0;
+      let count = 0;
+      for (let y = startYear; y <= endYear; y++) {
+        const v = annual[String(y)];
+        if (v == null) continue;
+        sum += v;
+        count += 1;
+      }
+      return count > 0 ? sum / count : null;
+    }
+
+    // ====== SUPABASE CACHE FUNCTIONS ======
+    async function getCachedClimate(city) {
+      if (!supabase) return null;
+      const { data, error } = await supabase
+        .from("city_climate_cache")
+        .select("annual_temp, annual_precip, last_fetched")
+        .eq("city_slug", city.slug)
+        .maybeSingle();
+      if (error) {
+        console.warn("Supabase fetch error", error);
+        return null;
+      }
+      if (!data) return null;
+      return {
+        annualTemp: data.annual_temp || {},
+        annualPrecip: data.annual_precip || {},
+      };
+    }
+
+    async function storeCachedClimate(city, annualTemp, annualPrecip) {
+      if (!supabase) return;
+      const payload = {
+        city_slug: city.slug,
+        city_name: city.name_en,
+        country: city.country,
+        latitude: city.lat,
+        longitude: city.lon,
+        model: "CMCC_CM2_VHR4",
+        annual_temp: annualTemp,
+        annual_precip: annualPrecip,
+        last_fetched: new Date().toISOString(),
+      };
+      const { error } = await supabase
+        .from("city_climate_cache")
+        .upsert(payload, { onConflict: "city_slug" });
+      if (error) {
+        console.warn("Supabase upsert error", error);
+      }
+    }
+
+    // ====== OPEN-METEO FETCH ======
+    async function fetchClimateFromApi(city) {
+      const params = new URLSearchParams({
+        latitude: city.lat,
+        longitude: city.lon,
+        start_date: "1950-01-01",
+        end_date: "2050-01-01",
+        models: "CMCC_CM2_VHR4",
+        daily: "temperature_2m_mean,precipitation_sum",
+        temperature_unit: "celsius",
+        precipitation_unit: "mm",
+        timeformat: "iso8601",
+      });
+      const url = `${OPEN_METEO_BASE}?${params.toString()}`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Open-Meteo error ${res.status}`);
+      }
+      const json = await res.json();
+      const dates = json.daily?.time || [];
+      const temps = json.daily?.temperature_2m_mean || [];
+      const precs = json.daily?.precipitation_sum || [];
+      const annualTemp = aggregateAnnual(dates, temps);
+      const annualPrecip = aggregateAnnual(dates, precs);
+      return { annualTemp, annualPrecip };
+    }
+
+    // ====== UI UPDATE FOR CITY ======
+    const cityMetaCoords = document.getElementById("city-meta-coords");
+    const cityMetaBaseline = document.getElementById("city-meta-baseline");
+    const cityMetaCurrent = document.getElementById("city-meta-current");
+    const metricGlobalBaseline = document.getElementById("metric-global-baseline");
+    const metricGlobalNow = document.getElementById("metric-global-now");
+    const metricGlobalDelta = document.getElementById("metric-global-delta");
+    const metricCityNow = document.getElementById("metric-city-now");
+    const metricCityDelta = document.getElementById("metric-city-delta");
+    const metricFuture = document.getElementById("metric-future");
+    const metricFutureNote = document.getElementById("metric-future-note");
+    const deltaSummary = document.getElementById("delta-summary");
+
+    async function loadCity() {
+      const slug = citySelect.value;
+      const city = CITIES.find((c) => c.slug === slug);
+      if (!city) return;
+
+      localStorage.setItem("gw_last_city", city.slug);
+      focusCityOnMap(city);
+      cityMetaCoords.textContent = `${city.lat.toFixed(2)}, ${city.lon.toFixed(
+        2
+      )}`;
+
+      const btn = document.getElementById("btn-load-city");
+      btn.disabled = true;
+      btn.textContent = currentLang === "tr" ? "Yükleniyor..." : "Loading...";
+
+      let annualTemp;
+      let annualPrecip;
+      let fromCache = false;
+
+      try {
+        // 1) try Supabase cache
+        const cached = await getCachedClimate(city);
+        if (cached && Object.keys(cached.annualTemp || {}).length > 0) {
+          annualTemp = cached.annualTemp;
+          annualPrecip = cached.annualPrecip || {};
+          fromCache = true;
+        } else {
+          // 2) else fetch from Open-Meteo
+          const fresh = await fetchClimateFromApi(city);
+          annualTemp = fresh.annualTemp;
+          annualPrecip = fresh.annualPrecip;
+          // store in Supabase if possible
+          await storeCachedClimate(city, annualTemp, annualPrecip);
+        }
+
+        const arr = annualToSortedArray(annualTemp);
+        const labels = arr.map((p) => p.year);
+        const values = arr.map((p) => p.value);
+
+        // Compute windows
+        const baselineMean = windowMean(annualTemp, 1951, 1980);
+        const recentMean = windowMean(annualTemp, 1991, 2020);
+        const futureMean = windowMean(annualTemp, 2031, 2050);
+
+        // Update city meta chips
+        if (baselineMean != null) {
+          const txt =
+            currentLang === "tr"
+              ? `1951–1980 ort.: ${baselineMean.toFixed(1)} °C`
+              : `1951–1980 mean: ${baselineMean.toFixed(1)} °C`;
+          cityMetaBaseline.textContent = txt;
+        } else {
+          cityMetaBaseline.textContent = "–";
+        }
+        if (recentMean != null) {
+          const txt =
+            currentLang === "tr"
+              ? `1991–2020 ort.: ${recentMean.toFixed(1)} °C`
+              : `1991–2020 mean: ${recentMean.toFixed(1)} °C`;
+          cityMetaCurrent.textContent = txt;
+        } else {
+          cityMetaCurrent.textContent = "–";
+        }
+
+        // Update overview cards (example based on first loaded city)
+        if (baselineMean != null) {
+          metricGlobalBaseline.textContent = `${baselineMean.toFixed(1)} °C`;
+        }
+        if (recentMean != null && baselineMean != null) {
+          metricGlobalNow.textContent = `${recentMean.toFixed(1)} °C`;
+          const delta = recentMean - baselineMean;
+          metricGlobalDelta.textContent =
+            (delta >= 0 ? "+" : "") + delta.toFixed(1) + " °C";
+        }
+        if (recentMean != null) {
+          metricCityNow.textContent = `${recentMean.toFixed(1)} °C`;
+          metricCityDelta.textContent =
+            currentLang === "tr"
+              ? `${city.name_tr} için 1991–2020 ortalaması`
+              : `1991–2020 mean for ${city.name_en}`;
+        }
+        if (futureMean != null && baselineMean != null) {
+          metricFuture.textContent = `${futureMean.toFixed(1)} °C`;
+          const deltaFuture = futureMean - baselineMean;
+          metricFutureNote.textContent =
+            (deltaFuture >= 0 ? "+" : "") +
+            deltaFuture.toFixed(1) +
+            " °C vs 1951–1980";
+        }
+
+        // Update annual line chart
+        const annualCtx = document
+          .getElementById("chart-annual")
+          .getContext("2d");
+        const aChart = ensureAnnualChart(annualCtx);
+        aChart.data.labels = labels;
+        aChart.data.datasets = [
+          {
+            label:
+              currentLang === "tr"
+                ? `${city.name_tr} yıllık ort. sıcaklık`
+                : `${city.name_en} annual mean temperature`,
+            data: values,
+            borderColor: "#38bdf8",
+            backgroundColor: "rgba(56, 189, 248, 0.1)",
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.25,
+          },
+        ];
+        aChart.update();
+
+        // Update bars chart
+        const bctx = document.getElementById("chart-bars").getContext("2d");
+        const bChart = ensureBarsChart(bctx);
+        bChart.data.datasets = [
+          {
+            label: currentLang === "tr" ? "Sıcaklık ortalaması" : "Mean temperature",
+            data: [
+              baselineMean != null ? baselineMean : null,
+              recentMean != null ? recentMean : null,
+              futureMean != null ? futureMean : null,
+            ],
+            backgroundColor: [
+              "rgba(59, 130, 246, 0.7)",
+              "rgba(239, 68, 68, 0.8)",
+              "rgba(245, 158, 11, 0.85)",
+            ],
+          },
+        ];
+        bChart.update();
+
+        // Delta summary
+        let summary;
+        if (baselineMean != null && recentMean != null && futureMean != null) {
+          const deltaNow = recentMean - baselineMean;
+          const deltaFuture = futureMean - baselineMean;
+          if (currentLang === "tr") {
+            summary = `${city.name_tr} için 1951–1980 dönemine göre 1991–2020'de yaklaşık ${
+              deltaNow >= 0 ? "+" : ""
+            }${deltaNow.toFixed(
+              1
+            )} °C, 2031–2050 döneminde ise yaklaşık ${
+              deltaFuture >= 0 ? "+" : ""
+            }${deltaFuture.toFixed(
+              1
+            )} °C ısınma görülüyor (model verisine göre).`;
+          } else {
+            summary = `For ${city.name_en}, the model suggests about ${
+              deltaNow >= 0 ? "+" : ""
+            }${deltaNow.toFixed(
+              1
+            )} °C warming in 1991–2020 vs 1951–1980, and about ${
+              deltaFuture >= 0 ? "+" : ""
+            }${deltaFuture.toFixed(
+              1
+            )} °C by 2031–2050 (relative to the same baseline).`;
+          }
+        } else {
+          summary =
+            currentLang === "tr"
+              ? "Bu şehir için yıllık iklim serisi eksik olabilir. Grafiğe trend olarak bakmak daha sağlıklı."
+              : "The annual climate series for this city may have gaps. Use the chart mainly for trend, not exact values.";
+        }
+        deltaSummary.textContent = summary;
+
+        setStatus(
+          true,
+          fromCache
+            ? "Loaded from Supabase cache; climate API used only when needed."
+            : "Loaded from Open-Meteo Climate API and cached to Supabase."
+        );
+      } catch (err) {
+        console.error(err);
+        setStatus(false, `Error loading city data: ${err.message}`, "err");
+      } finally {
+        btn.disabled = false;
+        btn.textContent =
+          currentLang === "tr" ? "Veriyi yükle" : "Load data";
+      }
+    }
+
+    document.getElementById("btn-load-city").addEventListener("click", loadCity);
+
+    document.getElementById("btn-use-last").addEventListener("click", () => {
+      const last = localStorage.getItem("gw_last_city");
+      if (last && CITIES.find((c) => c.slug === last)) {
+        citySelect.value = last;
+        loadCity();
+      }
+    });
+
+    // On first load, optionally auto-load last city
+    window.addEventListener("load", () => {
+      const last = localStorage.getItem("gw_last_city");
+      if (last && CITIES.find((c) => c.slug === last)) {
+        citySelect.value = last;
+        loadCity();
+      } else {
+        // focus first city on map
+        focusCityOnMap(CITIES[0]);
+      }
+    });
+  </script>
+</body>
+</html>
