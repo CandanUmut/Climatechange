@@ -2,1612 +2,1900 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Global Warming Awareness Dashboard · Küresel Isınma Farkındalık Paneli</title>
+  <title>Climate Reality Dashboard · Global Warming Awareness</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Leaflet CSS -->
+
+  <!-- Leaflet (map) -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
   />
+
+  <!-- Simple, dark-ish UI -->
   <style>
     :root {
       --bg: #020617;
-      --bg-soft: #020617;
-      --panel: rgba(15, 23, 42, 0.98);
-      --card: #0b1220;
-      --accent: #38bdf8;
-      --accent-soft: rgba(56, 189, 248, 0.14);
+      --panel: rgba(15, 23, 42, 0.96);
+      --card: #0b1120;
+      --accent: #22c55e;
+      --accent-soft: rgba(34, 197, 94, 0.15);
       --danger: #ef4444;
       --text: #e5e7eb;
       --text-soft: #9ca3af;
-      --border: #1f2937;
-      --radius: 14px;
-      --shadow: 0 18px 45px rgba(15, 23, 42, 0.85);
+      --border: #1e293b;
+      --radius: 16px;
+      --shadow-soft: 0 18px 40px rgba(15, 23, 42, 0.8);
     }
 
     * {
       box-sizing: border-box;
     }
 
-    html, body {
-      margin: 0;
-      padding: 0;
-      height: 100%;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-        "Segoe UI", sans-serif;
-      background: radial-gradient(circle at top, #020617 0, #000 45%, #020617 100%);
-      color: var(--text);
-    }
-
     body {
-      display: flex;
-      justify-content: center;
-      align-items: stretch;
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0, #020617 55%, #000 100%);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    .app {
+      max-width: 1280px;
+      margin: 0 auto;
       padding: 16px;
-    }
-
-    .app-shell {
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      max-width: 1240px;
-      max-height: 840px;
-      background: radial-gradient(circle at top left, #020617, #020617 40%, #020617 100%);
-      border-radius: 22px;
-      border: 1px solid rgba(148, 163, 184, 0.15);
-      overflow: hidden;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(16px);
-    }
-
-    @media (max-width: 900px) {
-      .app-shell {
-        max-height: none;
-        height: auto;
-      }
-      body {
-        padding: 8px;
-      }
-    }
-
-    .app-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 14px 18px;
-      border-bottom: 1px solid rgba(148, 163, 184, 0.24);
-      background: linear-gradient(
-        to right,
-        rgba(15, 23, 42, 0.96),
-        rgba(15, 23, 42, 0.92)
-      );
-    }
-
-    .app-title-block {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .logo-pill {
-      width: 34px;
-      height: 34px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 30% 30%, #f97316, #ea580c 40%, #020617 80%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      font-weight: 700;
-      color: #f9fafb;
-      box-shadow: 0 0 25px rgba(248, 250, 252, 0.2);
-    }
-
-    .app-title-text {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .app-title-main {
-      font-size: 17px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-    }
-
-    .app-title-sub {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 12px;
-    }
-
-    .lang-toggle {
-      display: inline-flex;
-      align-items: center;
-      padding: 2px;
-      border-radius: 999px;
-      background: rgba(15, 23, 42, 0.9);
-      border: 1px solid rgba(148, 163, 184, 0.6);
-    }
-
-    .lang-btn {
-      border: none;
-      outline: none;
-      background: transparent;
-      color: var(--text-soft);
-      font-size: 11px;
-      padding: 4px 9px;
-      border-radius: 999px;
-      cursor: pointer;
-    }
-
-    .lang-btn.active {
-      background: var(--accent);
-      color: #020617;
-      font-weight: 600;
-    }
-
-    .user-name-wrap {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .user-name-wrap span {
-      color: var(--text-soft);
-    }
-
-    .user-name-input {
-      background: rgba(15, 23, 42, 0.9);
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      color: var(--text);
-      padding: 4px 10px;
-      font-size: 11px;
-      min-width: 120px;
-    }
-
-    .user-name-input::placeholder {
-      color: rgba(148, 163, 184, 0.7);
-    }
-
-    .app-body {
-      display: grid;
-      grid-template-columns: 230px 1fr;
-      flex: 1;
-      min-height: 0;
-    }
-
-    @media (max-width: 900px) {
-      .app-body {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto auto;
-      }
-    }
-
-    .sidebar {
-      border-right: 1px solid rgba(148, 163, 184, 0.18);
-      background: radial-gradient(
-        circle at top left,
-        rgba(15, 23, 42, 0.96),
-        rgba(15, 23, 42, 0.99)
-      );
-      padding: 14px 12px;
       display: flex;
       flex-direction: column;
       gap: 12px;
     }
 
-    .sidebar-section-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.14em;
-      color: var(--text-soft);
-      margin-bottom: 2px;
-    }
-
-    .nav-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .nav-btn {
-      border-radius: 10px;
-      padding: 7px 9px;
-      font-size: 12px;
-      border: 1px solid transparent;
-      background: rgba(15, 23, 42, 0.95);
-      color: var(--text-soft);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      transition: all 0.14s ease-out;
-    }
-
-    .nav-btn span.label {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .nav-btn span.emoji {
-      font-size: 14px;
-    }
-
-    .nav-btn.active {
-      border-color: rgba(56, 189, 248, 0.95);
-      background: radial-gradient(circle at left, #0f172a, #020617);
-      color: var(--text);
-      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.4);
-    }
-
-    .nav-btn:hover {
-      border-color: rgba(56, 189, 248, 0.6);
-      color: #e5e7eb;
-    }
-
-    .sidebar-footnote {
-      margin-top: auto;
-      font-size: 10px;
-      color: var(--text-soft);
-      border-top: 1px dashed rgba(148, 163, 184, 0.35);
-      padding-top: 6px;
-    }
-
-    .main {
-      padding: 14px;
-      background: radial-gradient(circle at top, #020617, #020617 55%, #020617 100%);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .panel-row {
-      display: grid;
-      grid-template-columns: 1.3fr 1fr;
-      gap: 10px;
-    }
-
-    @media (max-width: 900px) {
-      .panel-row {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    .card {
-      background: linear-gradient(
-        to bottom,
-        rgba(15, 23, 42, 0.96),
-        rgba(15, 23, 42, 0.98)
-      );
-      border-radius: 16px;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      box-shadow: 0 16px 40px rgba(15, 23, 42, 0.8);
-      padding: 12px 12px 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      min-height: 0;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .card-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-    }
-
-    .card-title {
-      font-size: 13px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .badge {
-      font-size: 10px;
-      padding: 2px 7px;
-      border-radius: 999px;
-      background: var(--accent-soft);
-      color: #e0f2fe;
-      border: 1px solid rgba(56, 189, 248, 0.5);
-    }
-
-    .card-subtitle {
-      font-size: 11px;
-      color: var(--text-soft);
-    }
-
-    .chips-row {
+    header.app-header {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
-      font-size: 11px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, #020617, #020617 50%, #022c22);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(148, 163, 184, 0.1);
     }
 
-    .chip {
-      padding: 3px 7px;
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.35);
-      background: rgba(15, 23, 42, 0.92);
-      color: var(--text-soft);
-      display: inline-flex;
-      align-items: center;
+    .title-block {
+      display: flex;
+      flex-direction: column;
       gap: 4px;
     }
 
-    .chip strong {
-      color: #e5e7eb;
-      font-weight: 500;
+    .title-block h1 {
+      margin: 0;
+      font-size: 1.2rem;
+      letter-spacing: 0.02em;
     }
 
-    .overview-metrics {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 8px;
-      margin-top: 4px;
-    }
-
-    .metric-card {
-      border-radius: 12px;
-      padding: 7px 8px;
-      background: radial-gradient(circle at top left, #020617, #020617 70%);
-      border: 1px solid rgba(148, 163, 184, 0.3);
-      font-size: 11px;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-
-    .metric-label {
+    .title-block p {
+      margin: 0;
+      font-size: 0.8rem;
       color: var(--text-soft);
     }
 
-    .metric-value {
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .metric-delta-warm {
-      font-size: 11px;
-      color: #f97316;
-    }
-
-    .metric-delta-cool {
-      font-size: 11px;
-      color: #22c55e;
-    }
-
-    .city-controls {
+    .header-controls {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
       align-items: center;
-      margin-top: 4px;
     }
 
-    .select {
-      background: rgba(15, 23, 42, 0.96);
-      border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.7);
-      color: var(--text);
-      font-size: 11px;
-      padding: 4px 9px;
-      min-width: 160px;
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.8rem;
     }
 
-    .btn {
-      border-radius: 999px;
-      border: 1px solid rgba(56, 189, 248, 0.9);
-      background: radial-gradient(circle at top left, #0ea5e9, #0369a1);
-      color: #0b1120;
-      padding: 5px 11px;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 0 0 1px rgba(8, 47, 73, 0.7), 0 8px 20px rgba(8, 47, 73, 0.6);
-    }
-
-    .btn:disabled {
-      opacity: 0.6;
-      cursor: default;
-      box-shadow: none;
-    }
-
-    .btn-ghost {
-      background: transparent;
-      border-radius: 999px;
-      border: 1px dashed rgba(148, 163, 184, 0.6);
+    .field-group label {
       color: var(--text-soft);
-      font-size: 11px;
-      padding: 4px 8px;
     }
 
-    .chart-container {
-      position: relative;
-      width: 100%;
-      height: 220px;
+    .field-group input {
+      background: rgba(15, 23, 42, 0.8);
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      font-size: 0.85rem;
+      color: var(--text);
+      outline: none;
     }
 
-    canvas {
-      width: 100% !important;
-      height: 100% !important;
+    .field-group input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.45);
+    }
+
+    .lang-toggle {
+      display: flex;
+      gap: 4px;
+      background: rgba(15, 23, 42, 0.85);
+      border-radius: 999px;
+      padding: 4px;
+      border: 1px solid var(--border);
+    }
+
+    .lang-toggle button {
+      border: none;
+      background: transparent;
+      color: var(--text-soft);
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .lang-toggle button.active {
+      background: var(--accent);
+      color: #022c22;
+      font-weight: 600;
+    }
+
+    main.layout {
+      display: grid;
+      grid-template-columns: minmax(0, 2.2fr) minmax(0, 3fr);
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    @media (max-width: 900px) {
+      main.layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: var(--radius);
+      border: 1px solid rgba(148, 163, 184, 0.1);
+      box-shadow: var(--shadow-soft);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 0;
     }
 
     #map {
       width: 100%;
-      height: 220px;
-      border-radius: 12px;
+      height: 260px;
+      border-radius: var(--radius);
       overflow: hidden;
-      border: 1px solid rgba(148, 163, 184, 0.3);
+      border: 1px solid rgba(148, 163, 184, 0.25);
     }
 
-    .section {
-      display: none;
-      flex-direction: column;
-      gap: 10px;
-      height: 100%;
-    }
-
-    .section.active {
+    .city-search-row {
       display: flex;
-    }
-
-    .scrollable {
-      overflow: auto;
-    }
-
-    .scenario-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      flex-wrap: wrap;
       gap: 8px;
-      font-size: 11px;
+      align-items: center;
     }
 
-    .scenario-card {
-      border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.28);
-      padding: 8px 9px;
-      background: radial-gradient(circle at top, #020617, #020617 70%);
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .scenario-title {
-      font-weight: 600;
-      font-size: 12px;
-    }
-
-    .scenario-tag {
-      font-size: 10px;
-      padding: 1px 6px;
+    .city-search-row input {
+      flex: 1;
+      min-width: 150px;
       border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      color: var(--text-soft);
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 42, 0.85);
+      padding: 6px 10px;
+      color: var(--text);
+      font-size: 0.85rem;
+      outline: none;
     }
 
-    .scenario-body {
-      color: var(--text-soft);
-    }
-
-    .about-text {
-      font-size: 11px;
-      color: var(--text-soft);
-      line-height: 1.5;
-    }
-
-    .about-text strong {
-      color: #e5e7eb;
+    .city-search-row button {
+      border-radius: 999px;
+      border: none;
+      background: var(--accent);
+      color: #022c22;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      font-weight: 600;
     }
 
     .pill {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      font-size: 10px;
-      padding: 2px 7px;
+      gap: 6px;
       border-radius: 999px;
-      border: 1px solid rgba(148, 163, 184, 0.5);
-      background: rgba(15, 23, 42, 0.9);
+      padding: 4px 10px;
+      font-size: 0.75rem;
+      background: var(--accent-soft);
+      border: 1px solid rgba(34, 197, 94, 0.6);
+      color: #bbf7d0;
     }
 
-    .status-text {
-      font-size: 11px;
-      color: var(--text-soft);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .status-dot {
+    .pill-dot {
       width: 8px;
       height: 8px;
       border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+      background: var(--accent);
     }
 
-    .status-dot.warn {
-      background: #f97316;
-      box-shadow: 0 0 0 3px rgba(248, 144, 48, 0.3);
+    .city-list {
+      max-height: 220px;
+      overflow-y: auto;
+      padding-right: 4px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 6px;
+      font-size: 0.82rem;
     }
 
-    .status-dot.err {
-      background: #ef4444;
-      box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.3);
+    .city-pill {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .city-pill span.city-name {
+      font-weight: 500;
+    }
+
+    .city-pill span.city-country {
+      color: var(--text-soft);
+      font-size: 0.72rem;
+    }
+
+    .city-pill.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px rgba(34, 197, 94, 0.45);
+      background: radial-gradient(circle at top, #022c22, #020617);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 4px;
+      overflow-x: auto;
+    }
+
+    .tabs button {
+      border: none;
+      background: transparent;
+      color: var(--text-soft);
+      font-size: 0.8rem;
+      padding: 6px 10px;
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .tabs button.active {
+      background: var(--accent-soft);
+      color: #bbf7d0;
+      border: 1px solid rgba(34, 197, 94, 0.6);
+    }
+
+    .tab-content {
+      padding-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .tab-pane {
+      display: none;
+      gap: 10px;
+      flex-direction: column;
+    }
+
+    .tab-pane.active {
+      display: flex;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 8px;
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 0.85rem;
+      color: var(--text-soft);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-value {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .card-sub {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 220px !important;
+    }
+
+    .status-text {
+      font-size: 0.8rem;
+      color: var(--text-soft);
     }
 
     .status-text strong {
-      color: #e5e7eb;
+      color: var(--accent);
     }
 
-    .small-muted {
-      font-size: 10px;
+    .feedback-form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 8px;
+      align-items: flex-end;
+      font-size: 0.8rem;
+    }
+
+    .feedback-form textarea {
+      min-height: 60px;
+      resize: vertical;
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+      color: var(--text);
+      outline: none;
+      font-size: 0.8rem;
+    }
+
+    .feedback-form select,
+    .feedback-form input[type="range"] {
+      width: 100%;
+    }
+
+    .feedback-form-select,
+    .feedback-form-slider {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 6px 8px;
+    }
+
+    .feedback-form button {
+      border-radius: 999px;
+      border: none;
+      background: var(--accent);
+      color: #022c22;
+      font-weight: 600;
+      padding: 6px 12px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    .tagline {
+      font-size: 0.78rem;
       color: var(--text-soft);
+      line-height: 1.4;
+    }
+
+    .loading-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding-top: 16px;
+      z-index: 9999;
+    }
+
+    .loading-chip {
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.98);
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      backdrop-filter: blur(18px);
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .loading-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--accent);
+      animation: pulse 0.9s infinite alternate;
+    }
+
+    @keyframes pulse {
+      from { transform: scale(0.9); opacity: 0.6; }
+      to { transform: scale(1.2); opacity: 1; }
+    }
+
+    .hidden {
+      display: none !important;
     }
   </style>
 </head>
 <body>
-  <div class="app-shell">
+  <div class="app">
     <header class="app-header">
-      <div class="app-title-block">
-        <div class="logo-pill">°C</div>
-        <div class="app-title-text">
-          <div class="app-title-main" data-i18n-key="app_title"></div>
-          <div class="app-title-sub" data-i18n-key="app_subtitle"></div>
-        </div>
+      <div class="title-block">
+        <h1 data-i18n="app.title">Climate Reality Dashboard</h1>
+        <p data-i18n="app.subtitle">
+          Track real data, feel the impact, and think about global warming.
+        </p>
       </div>
-      <div class="header-right">
-        <div class="user-name-wrap">
-          <span data-i18n-key="hello_label"></span>
-          <input
-            id="user-name-input"
-            class="user-name-input"
-            type="text"
-            maxlength="32"
-            placeholder="Your name / İsmin"
-          />
+      <div class="header-controls">
+        <div class="field-group">
+          <label for="userName" data-i18n="field.nameLabel">Your name</label>
+          <input id="userName" type="text" placeholder="Umut" />
         </div>
-        <div class="lang-toggle">
-          <button class="lang-btn active" data-lang="en">EN</button>
-          <button class="lang-btn" data-lang="tr">TR</button>
+
+        <div class="field-group">
+          <label data-i18n="field.sessionLabel">Session</label>
+          <div class="pill">
+            <span class="pill-dot"></span>
+            <span id="sessionCityLabel">–</span>
+          </div>
+        </div>
+
+        <div class="field-group">
+          <label data-i18n="field.language">Language</label>
+          <div class="lang-toggle">
+            <button type="button" id="lang-en" data-lang="en" class="active">
+              EN
+            </button>
+            <button type="button" id="lang-tr" data-lang="tr">
+              TR
+            </button>
+          </div>
         </div>
       </div>
     </header>
 
-    <div class="app-body">
-      <aside class="sidebar">
-        <div>
-          <div class="sidebar-section-label" data-i18n-key="nav_section_main"></div>
-          <div class="nav-group">
-            <button class="nav-btn active" data-section="overview">
-              <span class="label">
-                <span class="emoji">🌍</span>
-                <span data-i18n-key="nav_overview"></span>
-              </span>
-              <span>1</span>
-            </button>
-            <button class="nav-btn" data-section="city">
-              <span class="label">
-                <span class="emoji">🏙️</span>
-                <span data-i18n-key="nav_city"></span>
-              </span>
-              <span>2</span>
-            </button>
-            <button class="nav-btn" data-section="scenarios">
-              <span class="label">
-                <span class="emoji">📈</span>
-                <span data-i18n-key="nav_scenarios"></span>
-              </span>
-              <span>3</span>
-            </button>
-            <button class="nav-btn" data-section="about">
-              <span class="label">
-                <span class="emoji">ℹ️</span>
-                <span data-i18n-key="nav_about"></span>
-              </span>
-              <span>4</span>
-            </button>
-          </div>
+    <main class="layout">
+      <!-- LEFT: Map + city list -->
+      <section class="panel">
+        <div class="city-search-row">
+          <input
+            id="citySearch"
+            list="cityDatalist"
+            placeholder="Search city… / Şehir ara…"
+          />
+          <datalist id="cityDatalist"></datalist>
+          <button id="citySearchBtn" type="button" data-i18n="button.searchCity">
+            Search
+          </button>
         </div>
 
-        <div class="sidebar-footnote">
-          <div class="status-text">
-            <div class="status-dot" id="status-dot"></div>
-            <span id="status-text"></span>
-          </div>
-          <div class="small-muted" data-i18n-key="sidebar_note"></div>
+        <div id="map"></div>
+
+        <div class="status-text">
+          <span data-i18n="map.hint">
+            Tip: Click on the map or pick a city below to load data.
+          </span>
         </div>
-      </aside>
 
-      <main class="main">
-        <!-- OVERVIEW SECTION -->
-        <section class="section active scrollable" id="section-overview">
-          <div class="panel-row">
-            <div class="card">
-              <div class="card-header">
-                <div>
-                  <div class="card-title">
-                    <span>📊</span>
-                    <span data-i18n-key="overview_title"></span>
-                  </div>
-                  <div class="card-subtitle" data-i18n-key="overview_subtitle"></div>
-                </div>
-                <span class="badge" data-i18n-key="badge_live"></span>
+        <div class="city-list" id="cityList"></div>
+      </section>
+
+      <!-- RIGHT: Tabs + charts + explanations -->
+      <section class="panel">
+        <div class="tabs">
+          <button class="active" data-tab="overview" data-i18n="tab.overview">
+            Overview
+          </button>
+          <button data-tab="climate" data-i18n="tab.climate">
+            Climate Trend
+          </button>
+          <button data-tab="air" data-i18n="tab.air">
+            Air & Water
+          </button>
+          <button data-tab="risk" data-i18n="tab.risk">
+            Risk & Extremes
+          </button>
+          <button data-tab="learn" data-i18n="tab.learn">
+            Learn & Reflect
+          </button>
+        </div>
+
+        <div class="tab-content">
+          <!-- Overview -->
+          <div class="tab-pane active" id="tab-overview">
+            <div class="cards-grid">
+              <div class="card">
+                <h3 data-i18n="card.city.title">Selected city</h3>
+                <div class="card-value" id="summary-city-name">–</div>
+                <div class="card-sub" id="summary-city-coords">–</div>
               </div>
-
-              <div class="chips-row">
-                <span class="chip">
-                  <span>🔥</span><strong data-i18n-key="chip_temp"></strong>
-                </span>
-                <span class="chip">
-                  <span>🌧️</span><strong data-i18n-key="chip_rain"></strong>
-                </span>
-                <span class="chip">
-                  <span>📆</span><strong data-i18n-key="chip_period"></strong>
-                </span>
+              <div class="card">
+                <h3 data-i18n="card.tempNow.title">Current temperature</h3>
+                <div class="card-value" id="summary-temp-current">–</div>
+                <div class="card-sub" id="summary-temp-minmax">–</div>
               </div>
-
-              <div class="overview-metrics" id="overview-metrics">
-                <div class="metric-card">
-                  <div class="metric-label" data-i18n-key="metric_global_baseline"></div>
-                  <div class="metric-value" id="metric-global-baseline">–</div>
-                  <div class="metric-delta-warm" id="metric-global-baseline-note">1951–1980</div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-label" data-i18n-key="metric_global_now"></div>
-                  <div class="metric-value" id="metric-global-now">–</div>
-                  <div class="metric-delta-warm" id="metric-global-delta">+– °C</div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-label" data-i18n-key="metric_city_now"></div>
-                  <div class="metric-value" id="metric-city-now">–</div>
-                  <div class="metric-delta-warm" id="metric-city-delta">–</div>
-                </div>
-                <div class="metric-card">
-                  <div class="metric-label" data-i18n-key="metric_future"></div>
-                  <div class="metric-value" id="metric-future">–</div>
-                  <div class="metric-delta-warm" id="metric-future-note">–</div>
-                </div>
+              <div class="card">
+                <h3 data-i18n="card.rain.title">Rain & next days</h3>
+                <div class="card-value" id="summary-rain">–</div>
+                <div class="card-sub" id="summary-rain-detail">–</div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="card.air.title">Air quality</h3>
+                <div class="card-value" id="summary-aqi">–</div>
+                <div class="card-sub" id="summary-aqi-detail">–</div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="card.elevation.title">Elevation</h3>
+                <div class="card-value" id="summary-elevation">–</div>
+                <div class="card-sub" id="summary-elevation-detail">–</div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="card.climateTrend.title">
+                  Warming trend (model)
+                </h3>
+                <div class="card-value" id="summary-climate-trend">–</div>
+                <div class="card-sub" id="summary-climate-trend-detail">–</div>
               </div>
             </div>
 
             <div class="card">
-              <div class="card-header">
-                <div>
-                  <div class="card-title">
-                    <span>🌎</span>
-                    <span data-i18n-key="map_title"></span>
-                  </div>
-                  <div class="card-subtitle" data-i18n-key="map_subtitle"></div>
-                </div>
-                <button class="btn-ghost" id="btn-zoom-world">
-                  🌐 <span data-i18n-key="map_reset"></span>
-                </button>
-              </div>
-              <div id="map"></div>
+              <h3 data-i18n="chart.tempRain.title">
+                Next 7 days: temperature & rain
+              </h3>
+              <canvas id="chart-daily-temp-rain"></canvas>
             </div>
           </div>
-        </section>
 
-        <!-- CITY EXPLORER SECTION -->
-        <section class="section scrollable" id="section-city">
-          <div class="panel-row">
+          <!-- Climate Trend -->
+          <div class="tab-pane" id="tab-climate">
             <div class="card">
-              <div class="card-header">
-                <div>
-                  <div class="card-title">
-                    <span>🏙️</span>
-                    <span data-i18n-key="city_title"></span>
-                  </div>
-                  <div class="card-subtitle" data-i18n-key="city_subtitle"></div>
-                </div>
-                <span class="badge" data-i18n-key="badge_city"></span>
-              </div>
-
-              <div class="city-controls">
-                <select id="city-select" class="select"></select>
-                <button class="btn" id="btn-load-city">
-                  <span>🔍</span>
-                  <span data-i18n-key="btn_load_city"></span>
-                </button>
-                <button class="btn-ghost" id="btn-use-last">
-                  ♻️ <span data-i18n-key="btn_use_last"></span>
-                </button>
-              </div>
-
-              <div class="chips-row" style="margin-top:6px;">
-                <span class="chip">
-                  <span>📍</span><span id="city-meta-coords">–</span>
-                </span>
-                <span class="chip">
-                  <span>🧊</span><span id="city-meta-baseline">–</span>
-                </span>
-                <span class="chip">
-                  <span>🔥</span><span id="city-meta-current">–</span>
-                </span>
-              </div>
-
-              <div class="chart-container" style="margin-top:6px;">
-                <canvas id="chart-annual"></canvas>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <div>
-                  <div class="card-title">
-                    <span>📈</span>
-                    <span data-i18n-key="delta_title"></span>
-                  </div>
-                  <div class="card-subtitle" data-i18n-key="delta_subtitle"></div>
-                </div>
-              </div>
-
-              <div class="chart-container">
-                <canvas id="chart-bars"></canvas>
-              </div>
-
-              <div class="small-muted" id="delta-summary" style="margin-top:4px;">
+              <h3 data-i18n="chart.climate.title">
+                Modeled warming: past vs future
+              </h3>
+              <canvas id="chart-climate-trend"></canvas>
+              <div class="status-text" id="climateTrendStatus">
                 –
               </div>
             </div>
-          </div>
-        </section>
-
-        <!-- SCENARIOS SECTION -->
-        <section class="section scrollable" id="section-scenarios">
-          <div class="panel-row">
             <div class="card">
-              <div class="card-header">
-                <div>
-                  <div class="card-title">
-                    <span>📉</span>
-                    <span data-i18n-key="scenarios_title"></span>
-                  </div>
-                  <div class="card-subtitle" data-i18n-key="scenarios_subtitle"></div>
-                </div>
-              </div>
-              <div class="scenario-list">
-                <div class="scenario-card">
-                  <div class="scenario-title" data-i18n-key="scenario_1_title"></div>
-                  <div class="scenario-tag" data-i18n-key="scenario_1_tag"></div>
-                  <div class="scenario-body" data-i18n-key="scenario_1_body"></div>
-                </div>
-                <div class="scenario-card">
-                  <div class="scenario-title" data-i18n-key="scenario_2_title"></div>
-                  <div class="scenario-tag" data-i18n-key="scenario_2_tag"></div>
-                  <div class="scenario-body" data-i18n-key="scenario_2_body"></div>
-                </div>
-                <div class="scenario-card">
-                  <div class="scenario-title" data-i18n-key="scenario_3_title"></div>
-                  <div class="scenario-tag" data-i18n-key="scenario_3_tag"></div>
-                  <div class="scenario-body" data-i18n-key="scenario_3_body"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <div>
-                  <div class="card-title">
-                    <span>🧭</span>
-                    <span data-i18n-key="actions_title"></span>
-                  </div>
-                  <div class="card-subtitle" data-i18n-key="actions_subtitle"></div>
-                </div>
-              </div>
-              <ul class="about-text" style="margin:4px 0 0 14px;">
-                <li data-i18n-key="actions_1"></li>
-                <li data-i18n-key="actions_2"></li>
-                <li data-i18n-key="actions_3"></li>
-                <li data-i18n-key="actions_4"></li>
-              </ul>
+              <p class="tagline" data-i18n="text.climateExplain">
+                Climate models use physics, observations, and scenarios to
+                estimate how much a location is likely to heat up over decades.
+                This view is not “exact”, but it helps us see direction: most
+                places on Earth are warming.
+              </p>
             </div>
           </div>
-        </section>
 
-        <!-- ABOUT SECTION -->
-        <section class="section scrollable" id="section-about">
-          <div class="panel-row">
-            <div class="card">
-              <div class="card-header">
-                <div>
-                  <div class="card-title">
-                    <span>ℹ️</span>
-                    <span data-i18n-key="about_title"></span>
-                  </div>
-                  <div class="card-subtitle" data-i18n-key="about_subtitle"></div>
-                </div>
+          <!-- Air & Water -->
+          <div class="tab-pane" id="tab-air">
+            <div class="cards-grid">
+              <div class="card">
+                <h3 data-i18n="card.airDetail.pm">PM2.5 / PM10 (µg/m³)</h3>
+                <div class="card-value" id="summary-air-pm">–</div>
+                <div class="card-sub" id="summary-air-pm-detail">–</div>
               </div>
-              <div class="about-text" style="margin-top:4px;">
-                <p data-i18n-key="about_p1"></p>
-                <p data-i18n-key="about_p2"></p>
-                <p data-i18n-key="about_p3"></p>
-                <p data-i18n-key="about_p4"></p>
-                <p class="small-muted" data-i18n-key="about_data_note"></p>
+              <div class="card">
+                <h3 data-i18n="card.airDetail.gases">Key gases (µg/m³)</h3>
+                <div class="card-value" id="summary-air-gas">–</div>
+                <div class="card-sub" id="summary-air-gas-detail">–</div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="card.marine.title">Sea surface (if coastal)</h3>
+                <div class="card-value" id="summary-marine">–</div>
+                <div class="card-sub" id="summary-marine-detail">–</div>
               </div>
             </div>
 
             <div class="card">
-              <div class="card-header">
-                <div class="card-title">
-                  <span>🧪</span>
-                  <span data-i18n-key="about_how_title"></span>
-                </div>
-              </div>
-              <div class="about-text" style="margin-top:4px;">
-                <p data-i18n-key="about_how_p1"></p>
-                <p data-i18n-key="about_how_p2"></p>
-                <p data-i18n-key="about_how_p3"></p>
-              </div>
-              <div style="margin-top:6px; display:flex; flex-wrap:wrap; gap:6px;">
-                <span class="pill">
-                  <span>☁️</span><span>Open-Meteo Climate</span>
-                </span>
-                <span class="pill">
-                  <span>🗃️</span><span>Supabase cache</span>
-                </span>
-                <span class="pill">
-                  <span>👤</span><span>Local storage</span>
-                </span>
-              </div>
+              <h3 data-i18n="chart.air.title">
+                Next 24 hours: air quality
+              </h3>
+              <canvas id="chart-air-quality"></canvas>
+            </div>
+
+            <div class="card">
+              <p class="tagline" data-i18n="text.airExplain">
+                Air pollution and heat interact: hotter days often trap more
+                pollution near the ground. Cleaner air is also climate action:
+                less fossil fuel burning means fewer greenhouse gases and fewer
+                toxic particles in our lungs.
+              </p>
             </div>
           </div>
-        </section>
-      </main>
+
+          <!-- Risk & Extremes -->
+          <div class="tab-pane" id="tab-risk">
+            <div class="cards-grid">
+              <div class="card">
+                <h3 data-i18n="card.flood.title">
+                  Flood / extreme rain (experimental)
+                </h3>
+                <div class="card-value" id="summary-flood">–</div>
+                <div class="card-sub" id="summary-flood-detail">
+                  <span data-i18n="text.floodExplainShort">
+                    We sample flood / heavy rain indices where available. Not
+                    all locations have detailed data yet.
+                  </span>
+                </div>
+              </div>
+              <div class="card">
+                <h3 data-i18n="card.ensemble.title">
+                  Ensemble forecasts (experimental)
+                </h3>
+                <div class="card-value" id="summary-ensemble">–</div>
+                <div class="card-sub" id="summary-ensemble-detail">
+                  <span data-i18n="text.ensembleExplainShort">
+                    Ensembles run many model versions to capture uncertainty in
+                    future weather and extremes.
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <p class="tagline" data-i18n="text.riskExplain">
+                Global warming doesn’t only mean “a bit warmer”. It shifts the
+                odds: more heatwaves, heavier downpours, higher seas, stronger
+                storms. Local data helps us ask: what are the main risks where I
+                live?
+              </p>
+            </div>
+          </div>
+
+          <!-- Learn & Reflect -->
+          <div class="tab-pane" id="tab-learn">
+            <div class="card">
+              <h3 data-i18n="learn.title">How do you feel about this city?</h3>
+              <form class="feedback-form" id="feedbackForm">
+                <div class="feedback-form-slider">
+                  <label for="concernRange" data-i18n="learn.concernLabel">
+                    Concern level (1–5)
+                  </label>
+                  <input
+                    id="concernRange"
+                    type="range"
+                    min="1"
+                    max="5"
+                    value="3"
+                  />
+                </div>
+
+                <div class="feedback-form-select">
+                  <label for="focusSelect" data-i18n="learn.focusLabel">
+                    Biggest concern
+                  </label>
+                  <select id="focusSelect">
+                    <option value="heat" data-i18n="learn.focus.heat">
+                      Heat & heatwaves
+                    </option>
+                    <option value="flood" data-i18n="learn.focus.flood">
+                      Floods / storms
+                    </option>
+                    <option value="drought" data-i18n="learn.focus.drought">
+                      Drought & water
+                    </option>
+                    <option value="air_quality" data-i18n="learn.focus.air">
+                      Air quality
+                    </option>
+                    <option value="other" data-i18n="learn.focus.other">
+                      Other / mixed
+                    </option>
+                  </select>
+                </div>
+
+                <div>
+                  <label for="commentInput" data-i18n="learn.commentLabel">
+                    One sentence reflection
+                  </label>
+                  <textarea
+                    id="commentInput"
+                    placeholder="What does this data make you think or feel?"
+                  ></textarea>
+                </div>
+
+                <div>
+                  <button type="submit" data-i18n="learn.submit">
+                    Save reflection
+                  </button>
+                  <div class="status-text" id="feedbackStatus"> </div>
+                </div>
+              </form>
+            </div>
+
+            <div class="card">
+              <p class="tagline" data-i18n="learn.text">
+                Data is only the first step. Real change happens when we connect
+                numbers to our lives: our health, our water, our food, our
+                homes, and the people we love. Use this tool to think, talk, and
+                plan—not just scroll.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Loading chip -->
+  <div id="loadingOverlay" class="loading-overlay hidden">
+    <div class="loading-chip">
+      <div class="loading-dot"></div>
+      <span id="loadingText">Loading data…</span>
     </div>
   </div>
 
-  <!-- External libs -->
+  <!-- Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script
-    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
-  <!-- App logic -->
+
+  <!-- Main logic -->
   <script type="module">
     import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-    // ===================== Supabase =====================
+    // ============================
+    // Supabase
+    // ============================
     const SUPABASE_URL = "https://tkggowekxmnlixwinszl.supabase.co";
     const SUPABASE_ANON_KEY =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRrZ2dvd2VreG1ubGl4d2luc3psIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ3MzI1NjcsImV4cCI6MjA4MDMwODU2N30.y1GSvarl9YyBqMaP8x6SXeD88EJ10gjee4rlr6oLyZg";
+
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const OPEN_METEO_BASE = "https://climate-api.open-meteo.com/v1/climate";
-
-    // Famous cities – you can add/remove easily
-    const CITIES = [
-      { slug: "istanbul", name_en: "Istanbul", name_tr: "İstanbul", country: "Türkiye", lat: 41.0082, lon: 28.9784 },
-      { slug: "new_york", name_en: "New York", name_tr: "New York", country: "USA", lat: 40.7128, lon: -74.0060 },
-      { slug: "london", name_en: "London", name_tr: "Londra", country: "UK", lat: 51.5074, lon: -0.1278 },
-      { slug: "paris", name_en: "Paris", name_tr: "Paris", country: "France", lat: 48.8566, lon: 2.3522 },
-      { slug: "tokyo", name_en: "Tokyo", name_tr: "Tokyo", country: "Japan", lat: 35.6895, lon: 139.6917 },
-      { slug: "sydney", name_en: "Sydney", name_tr: "Sidney", country: "Australia", lat: -33.8688, lon: 151.2093 },
-      { slug: "cairo", name_en: "Cairo", name_tr: "Kahire", country: "Egypt", lat: 30.0444, lon: 31.2357 },
-      { slug: "lagos", name_en: "Lagos", name_tr: "Lagos", country: "Nigeria", lat: 6.5244, lon: 3.3792 },
-      { slug: "sao_paulo", name_en: "São Paulo", name_tr: "Sao Paulo", country: "Brazil", lat: -23.5505, lon: -46.6333 },
-      { slug: "delhi", name_en: "Delhi", name_tr: "Delhi", country: "India", lat: 28.7041, lon: 77.1025 },
-      { slug: "mexico_city", name_en: "Mexico City", name_tr: "Meksiko", country: "Mexico", lat: 19.4326, lon: -99.1332 },
-      { slug: "beijing", name_en: "Beijing", name_tr: "Pekin", country: "China", lat: 39.9042, lon: 116.4074 },
-      { slug: "berlin", name_en: "Berlin", name_tr: "Berlin", country: "Germany", lat: 52.52, lon: 13.4050 },
-      { slug: "moscow", name_en: "Moscow", name_tr: "Moskova", country: "Russia", lat: 55.7558, lon: 37.6173 }
+    // ============================
+    // Static city library
+    // ============================
+    const POPULAR_CITIES = [
+      { id: "istanbul", name: "İstanbul", country: "Türkiye", lat: 41.0082, lon: 28.9784 },
+      { id: "ankara", name: "Ankara", country: "Türkiye", lat: 39.9208, lon: 32.8541 },
+      { id: "izmir", name: "İzmir", country: "Türkiye", lat: 38.4237, lon: 27.1428 },
+      { id: "sf", name: "San Francisco", country: "USA", lat: 37.7749, lon: -122.4194 },
+      { id: "nyc", name: "New York", country: "USA", lat: 40.7128, lon: -74.006 },
+      { id: "london", name: "London", country: "UK", lat: 51.5074, lon: -0.1278 },
+      { id: "paris", name: "Paris", country: "France", lat: 48.8566, lon: 2.3522 },
+      { id: "berlin", name: "Berlin", country: "Germany", lat: 52.52, lon: 13.405 },
+      { id: "tokyo", name: "Tokyo", country: "Japan", lat: 35.6762, lon: 139.6503 },
+      { id: "seoul", name: "Seoul", country: "South Korea", lat: 37.5665, lon: 126.978 },
+      { id: "mumbai", name: "Mumbai", country: "India", lat: 19.076, lon: 72.8777 },
+      { id: "delhi", name: "Delhi", country: "India", lat: 28.7041, lon: 77.1025 },
+      { id: "sydney", name: "Sydney", country: "Australia", lat: -33.8688, lon: 151.2093 },
+      { id: "rio", name: "Rio de Janeiro", country: "Brazil", lat: -22.9068, lon: -43.1729 },
+      { id: "cairo", name: "Cairo", country: "Egypt", lat: 30.0444, lon: 31.2357 },
+      { id: "moscow", name: "Moscow", country: "Russia", lat: 55.7558, lon: 37.6173 },
+      { id: "lagos", name: "Lagos", country: "Nigeria", lat: 6.5244, lon: 3.3792 },
+      { id: "cape_town", name: "Cape Town", country: "South Africa", lat: -33.9249, lon: 18.4241 },
+      { id: "mexico_city", name: "Mexico City", country: "Mexico", lat: 19.4326, lon: -99.1332 },
+      { id: "buenos_aires", name: "Buenos Aires", country: "Argentina", lat: -34.6037, lon: -58.3816 }
     ];
 
-    // ====== I18N ======
-    const I18N = {
+    // ============================
+    // i18n
+    // ============================
+    const translations = {
       en: {
-        app_title: "Global Warming Awareness Dashboard",
-        app_subtitle: "Understand your city’s warming trend from 1950–2050",
-        hello_label: "Hi,",
-        nav_section_main: "Navigation",
-        nav_overview: "Global overview",
-        nav_city: "City explorer",
-        nav_scenarios: "Scenarios & action",
-        nav_about: "About the data",
-        sidebar_note:
-          "Data comes from climate models, not direct measurements. Use it to see trends, not exact daily weather.",
-        overview_title: "How fast is the planet heating?",
-        overview_subtitle:
-          "We compare a cooler baseline period (1951–1980) with recent decades and future projections.",
-        badge_live: "Live climate API",
-        chip_temp: "Daily mean temperature",
-        chip_rain: "Daily precipitation",
-        chip_period: "1950–2050 time window",
-        metric_global_baseline: "Global-style baseline (example)",
-        metric_global_now: "Recent 30-year mean (example)",
-        metric_city_now: "Selected city recent mean",
-        metric_future: "Future projection (example city)",
-        map_title: "Map of sample cities",
-        map_subtitle:
-          "Pick a city in the explorer to zoom. Markers here match the dashboard list.",
-        map_reset: "Reset view",
-        city_title: "City warming explorer",
-        city_subtitle:
-          "Pick a city and see how annual average temperature changes across decades.",
-        badge_city: "Per-city climate trend",
-        btn_load_city: "Load data",
-        btn_use_last: "Use last city",
-        delta_title: "Baseline vs now vs future",
-        delta_subtitle:
-          "We compute three 30-year windows: baseline (1951–1980), recent (1991–2020), and future (2031–2050).",
-        scenarios_title: "Scenarios: Which world do we choose?",
-        scenarios_subtitle:
-          "The same physics drives warming everywhere; our choices decide how far it goes.",
-        scenario_1_title: "Scenario A – We act fast",
-        scenario_1_tag: "Strong mitigation, lower warming",
-        scenario_1_body:
-          "Rapidly cutting fossil fuel use, protecting forests, and electrifying transport can keep additional warming smaller. Every tenth of a degree avoided means fewer heatwaves, crop failures, and ecosystem losses.",
-        scenario_2_title: "Scenario B – Business as usual",
-        scenario_2_tag: "High emissions path",
-        scenario_2_body:
-          "If emissions keep rising, many cities in this dashboard will see several extra °C by 2050. Heat, extreme rain, droughts, and sea-level rise all intensify, hitting vulnerable communities first.",
-        scenario_3_title: "Scenario C – Local action",
-        scenario_3_tag: "City-scale solutions",
-        scenario_3_body:
-          "Even while global policy is slow, cities can upgrade public transit, cool buildings, plant trees, and protect water. Use this dashboard to start conversations where you live.",
-        actions_title: "What can one person actually do?",
-        actions_subtitle:
-          "You can’t fix everything alone – but you absolutely change your own impact and influence others.",
-        actions_1: "Shift one regular trip from car to walking, bike, or public transport.",
-        actions_2: "Lower energy waste at home: efficient bulbs, turning devices fully off, moderating heating/cooling.",
-        actions_3: "Support honest climate information, not greenwashing. Share tools like this dashboard.",
-        actions_4: "Vote, work, or volunteer in ways that push for clean, fair energy systems.",
-        about_title: "What this app is – and is not",
-        about_subtitle: "A focused, city-level lens on global warming",
-        about_p1:
-          "This app does not show today’s local weather. Instead, it visualizes long-term climate model data for different cities, from 1950 through 2050.",
-        about_p2:
-          "We use daily climate model output and aggregate it into yearly averages for each city. Then we compare three periods: baseline (1951–1980), recent (1991–2020), and a possible future slice (2031–2050).",
-        about_p3:
-          "Climate models are not perfect and never will be. Still, they are very powerful at showing trends and ranges of possible futures under continued warming.",
-        about_p4:
-          "Use these graphs as a starting point for thinking, learning, and talking with others about the world you want to help build.",
-        about_data_note:
-          "Data source: downscaled CMIP6 climate models via Open-Meteo Climate API. Values are modelled, not measured station data.",
-        about_how_title: "How the data pipeline works",
-        about_how_p1:
-          "When you choose a city, the app first asks Supabase if we already stored its annual climate series.",
-        about_how_p2:
-          "If not, the browser directly calls the Open-Meteo Climate API, aggregates the raw daily values into yearly means, and saves them in the Supabase cache.",
-        about_how_p3:
-          "Your name and last selected city stay in your browser only (localStorage) – they are not sent to Supabase.",
+        "app.title": "Climate Reality Dashboard",
+        "app.subtitle": "Track real data, feel the impact, and think about global warming.",
+        "field.nameLabel": "Your name",
+        "field.sessionLabel": "Session",
+        "field.language": "Language",
+        "button.searchCity": "Search",
+        "map.hint": "Tip: Click on the map or pick a city below to load data.",
+        "tab.overview": "Overview",
+        "tab.climate": "Climate Trend",
+        "tab.air": "Air & Water",
+        "tab.risk": "Risk & Extremes",
+        "tab.learn": "Learn & Reflect",
+        "card.city.title": "Selected city",
+        "card.tempNow.title": "Current temperature",
+        "card.rain.title": "Rain & next days",
+        "card.air.title": "Air quality",
+        "card.elevation.title": "Elevation",
+        "card.climateTrend.title": "Warming trend (model)",
+        "chart.tempRain.title": "Next 7 days: temperature & rain",
+        "chart.climate.title": "Modeled warming: past vs future",
+        "text.climateExplain":
+          "Climate models use physics, observations, and scenarios to estimate how much a location is likely to heat up. This is direction, not exact prophecy.",
+        "card.airDetail.pm": "PM2.5 / PM10 (µg/m³)",
+        "card.airDetail.gases": "Key gases (µg/m³)",
+        "card.marine.title": "Sea surface (if coastal)",
+        "chart.air.title": "Next 24 hours: air quality",
+        "text.airExplain":
+          "Air pollution and heat interact. Cleaner air usually means less fossil fuel use and fewer greenhouse gases.",
+        "card.flood.title": "Flood / extreme rain (experimental)",
+        "text.floodExplainShort":
+          "We sample flood / heavy rain indicators where available. Not all locations have detailed data yet.",
+        "card.ensemble.title": "Ensemble forecasts (experimental)",
+        "text.ensembleExplainShort":
+          "Ensembles run many variations of a model to understand uncertainty in future weather and extremes.",
+        "text.riskExplain":
+          "Warming shifts the odds of extremes: heatwaves, heavy rain, droughts, sea level rise. Local data helps us ask what the main risks are.",
+        "learn.title": "How do you feel about this city?",
+        "learn.concernLabel": "Concern level (1–5)",
+        "learn.focusLabel": "Biggest concern",
+        "learn.focus.heat": "Heat & heatwaves",
+        "learn.focus.flood": "Floods / storms",
+        "learn.focus.drought": "Drought & water",
+        "learn.focus.air": "Air quality",
+        "learn.focus.other": "Other / mixed",
+        "learn.commentLabel": "One sentence reflection",
+        "learn.submit": "Save reflection",
+        "learn.text":
+          "Data is a mirror. Use it to think, talk, and plan—not just to scroll. What changes do these numbers invite in your life?",
       },
       tr: {
-        app_title: "Küresel Isınma Farkındalık Paneli",
-        app_subtitle: "Şehrinin 1950–2050 arasındaki ısınma trendini gör",
-        hello_label: "Merhaba,",
-        nav_section_main: "Gezinti",
-        nav_overview: "Küresel görünüm",
-        nav_city: "Şehir keşfi",
-        nav_scenarios: "Senaryolar ve adım at",
-        nav_about: "Veri hakkında",
-        sidebar_note:
-          "Veriler doğrudan ölçüm değil, iklim modellerinden geliyor. Günlük hava durumu değil, uzun vadeli trend için kullan.",
-        overview_title: "Dünya ne kadar hızlı ısınıyor?",
-        overview_subtitle:
-          "Daha serin bir referans dönemi (1951–1980) ile son yıllar ve gelecekteki projeksiyonları karşılaştırıyoruz.",
-        badge_live: "Canlı iklim API",
-        chip_temp: "Günlük ortalama sıcaklık",
-        chip_rain: "Günlük yağış",
-        chip_period: "1950–2050 zaman aralığı",
-        metric_global_baseline: "Küresel benzeri referans (örnek)",
-        metric_global_now: "Son 30 yıl ortalaması (örnek)",
-        metric_city_now: "Seçilen şehir son ortalama",
-        metric_future: "Gelecek projeksiyonu (örnek şehir)",
-        map_title: "Örnek şehirler haritası",
-        map_subtitle:
-          "Keşif kısmından şehir seçince harita oraya odaklanır. İşaretçiler listedeki şehirlerle eşleşir.",
-        map_reset: "Haritayı sıfırla",
-        city_title: "Şehir ısınma keşfi",
-        city_subtitle:
-          "Bir şehir seç ve yıllık ortalama sıcaklığın on yıllar boyunca nasıl değiştiğini gör.",
-        badge_city: "Şehir bazlı iklim trendi",
-        btn_load_city: "Veriyi yükle",
-        btn_use_last: "Son şehri kullan",
-        delta_title: "Referans – şimdi – gelecek",
-        delta_subtitle:
-          "Üç adet 30 yıllık pencere kullanıyoruz: referans (1951–1980), yakın dönem (1991–2020) ve gelecek (2031–2050).",
-        scenarios_title: "Senaryolar: Hangi dünyayı seçiyoruz?",
-        scenarios_subtitle:
-          "Aynı fizik her yerde ısınmayı artırıyor; ne kadar artacağını ise bizim seçimlerimiz belirliyor.",
-        scenario_1_title: "Senaryo A – Hızlı hareket",
-        scenario_1_tag: "Güçlü azaltım, daha düşük ısınma",
-        scenario_1_body:
-          "Fosil yakıt kullanımını hızlıca azaltmak, ormanları korumak ve ulaşımı elektriklendirmek ek ısınmayı daha küçük tutabilir. Kaçınılan her ondalık derece daha az sıcak hava dalgası, ürün kaybı ve ekosistem kaybı demek.",
-        scenario_2_title: "Senaryo B – Olduğu gibi devam",
-        scenario_2_tag: "Yüksek emisyon yolu",
-        scenario_2_body:
-          "Emisyonlar artmaya devam ederse, bu paneldeki birçok şehir 2050’ye kadar birkaç derece daha ısınabilir. Sıcaklık, aşırı yağış, kuraklık ve deniz seviyesi yükselmesi artar ve en kırılgan topluluklar önce etkilenir.",
-        scenario_3_title: "Senaryo C – Yerel hareket",
-        scenario_3_tag: "Şehir ölçeğinde çözümler",
-        scenario_3_body:
-          "Küresel politika yavaş ilerlese bile şehirler ulaşımı, binaları, ağaçlandırmayı ve suyu iyileştirebilir. Bu paneli yaşadığın yer hakkında sohbet başlatmak için kullan.",
-        actions_title: "Tek kişi gerçekten ne yapabilir?",
-        actions_subtitle:
-          "Her şeyi tek başına çözemezsin ama kendi etkin ve çevreni etkileme gücün çok büyük.",
-        actions_1: "Düzenli yaptığın bir yolculuğu arabadan yürüyüşe, bisiklete veya toplu taşımaya kaydır.",
-        actions_2: "Evde enerji israfını azalt: verimli ampuller, cihazları tamamen kapatma, ısıtma/soğutmayı dengeli kullanma.",
-        actions_3: "Gerçekçi iklim bilgisini, yeşil badanalamayı değil, destekle. Bu panel gibi araçları paylaş.",
-        actions_4: "Temiz ve adil enerji sistemleri için oy ver, çalış ya da gönüllü ol.",
-        about_title: "Bu uygulama ne – ve ne değil?",
-        about_subtitle: "Küresel ısınmaya şehir ölçeğinde bir bakış",
-        about_p1:
-          "Bu uygulama bugünün yerel hava durumunu göstermez. Bunun yerine 1950’den 2050’ye kadar çeşitli şehirler için iklim model verilerini görselleştirir.",
-        about_p2:
-          "Günlük model çıktısını alıp şehir başına yıllık ortalamalara çeviriyoruz. Sonra üç dönemi karşılaştırıyoruz: referans (1951–1980), yakın dönem (1991–2020) ve olası gelecek (2031–2050).",
-        about_p3:
-          "İklim modelleri mükemmel değildir ve hiç olmayacak. Yine de özellikle trendleri ve olası gelecek aralıklarını görmek için çok güçlü araçlardır.",
-        about_p4:
-          "Bu grafikleri düşünmek, öğrenmek ve başkalarıyla 'nasıl bir dünya istiyoruz?' diye konuşmak için bir başlangıç noktası olarak kullan.",
-        about_data_note:
-          "Veri kaynağı: Open-Meteo İklim API üzerinden indirgenmiş CMIP6 iklim modelleri. Değerler ölçüm istasyonu değil, model çıktısıdır.",
-        about_how_title: "Veri hattı nasıl çalışıyor?",
-        about_how_p1:
-          "Bir şehir seçtiğinde uygulama önce Supabase’te bu şehrin yıllık serisinin saklanıp saklanmadığına bakar.",
-        about_how_p2:
-          "Yoksa tarayıcı doğrudan Open-Meteo İklim API’ini çağırır, ham günlük değerleri yıllık ortalamalara toplar ve Supabase cache tablosuna kaydeder.",
-        about_how_p3:
-          "İsmin ve son seçtiğin şehir sadece tarayıcında (localStorage) saklanır – Supabase’e gönderilmez.",
+        "app.title": "İklim Gerçeği Paneli",
+        "app.subtitle":
+          "Gerçek verileri takip et, etkisini hisset ve küresel ısınma üzerine düşün.",
+        "field.nameLabel": "İsmin",
+        "field.sessionLabel": "Oturum",
+        "field.language": "Dil",
+        "button.searchCity": "Şehir ara",
+        "map.hint":
+          "İpucu: Haritaya tıkla veya aşağıdan bir şehir seçerek verileri yükle.",
+        "tab.overview": "Genel Bakış",
+        "tab.climate": "İklim Trendi",
+        "tab.air": "Hava & Su",
+        "tab.risk": "Riskler & Aşırılıklar",
+        "tab.learn": "Öğren & Düşün",
+        "card.city.title": "Seçilen şehir",
+        "card.tempNow.title": "Anlık sıcaklık",
+        "card.rain.title": "Yağış & sonraki günler",
+        "card.air.title": "Hava kalitesi",
+        "card.elevation.title": "Rakım",
+        "card.climateTrend.title": "Isınma trendi (model)",
+        "chart.tempRain.title": "Önümüzdeki 7 gün: sıcaklık & yağış",
+        "chart.climate.title": "Model tahmini ısınma: geçmiş vs gelecek",
+        "text.climateExplain":
+          "İklim modelleri, fizik ve gözlemlerle bir bölgenin önümüzdeki on yıllarda ne kadar ısınabileceğini tahmin eder. Bu kesin hüküm değil, yön gösterir.",
+        "card.airDetail.pm": "PM2.5 / PM10 (µg/m³)",
+        "card.airDetail.gases": "Temel gazlar (µg/m³)",
+        "card.marine.title": "Deniz yüzeyi (kıyıya yakınsa)",
+        "chart.air.title": "Önümüzdeki 24 saat: hava kalitesi",
+        "text.airExplain":
+          "Hava kirliliği ve sıcaklık etkileşir. Daha temiz hava, çoğu zaman daha az fosil yakıt ve daha az sera gazı demektir.",
+        "card.flood.title": "Sel / aşırı yağış (deneme)",
+        "text.floodExplainShort":
+          "Uygun bölgelerde sel / yoğun yağış göstergelerini örnekliyoruz. Her yerde detaylı veri yok.",
+        "card.ensemble.title": "Topluluk tahminleri (deneme)",
+        "text.ensembleExplainShort":
+          "Topluluk (ensemble) tahminleri, belirsizliği anlamak için çok sayıda model koşumu kullanır.",
+        "text.riskExplain":
+          "Isınma sadece ‘biraz daha sıcak’ demek değil; aşırı sıcak, sel, kuraklık ve deniz seviyesi risklerini de artırır.",
+        "learn.title": "Bu şehir hakkında ne hissediyorsun?",
+        "learn.concernLabel": "Endişe seviyesi (1–5)",
+        "learn.focusLabel": "En büyük endişen",
+        "learn.focus.heat": "Sıcaklık & sıcak hava dalgaları",
+        "learn.focus.flood": "Seller / fırtınalar",
+        "learn.focus.drought": "Kuraklık & su",
+        "learn.focus.air": "Hava kalitesi",
+        "learn.focus.other": "Diğer / karışık",
+        "learn.commentLabel": "Tek cümlelik düşüncen",
+        "learn.submit": "Yansıtmayı kaydet",
+        "learn.text":
+          "Veri bir ayna gibidir. Sadece bakmak için değil; düşünmek, konuşmak ve plan yapmak için kullan.",
       },
     };
 
-    let currentLang = localStorage.getItem("gw_lang") || "en";
-
-    function applyI18n(lang) {
-      const dict = I18N[lang];
-      document.querySelectorAll("[data-i18n-key]").forEach((el) => {
-        const key = el.getAttribute("data-i18n-key");
-        if (dict[key]) el.textContent = dict[key];
-      });
-      currentLang = lang;
-      localStorage.setItem("gw_lang", lang);
-    }
-
-    // ====== UI ELEMENTS ======
-    const sections = {
-      overview: document.getElementById("section-overview"),
-      city: document.getElementById("section-city"),
-      scenarios: document.getElementById("section-scenarios"),
-      about: document.getElementById("section-about"),
+    let state = {
+      lang: "en",
+      userName: "",
+      selectedLocation: null,
+      map: null,
+      mapMarker: null,
+      charts: {
+        dailyTempRain: null,
+        airQuality: null,
+        climateTrend: null,
+      },
     };
 
-    const navButtons = document.querySelectorAll(".nav-btn");
-    navButtons.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const target = btn.getAttribute("data-section");
-        navButtons.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        Object.entries(sections).forEach(([key, section]) => {
-          section.classList.toggle("active", key === target);
-        });
-      });
-    });
+    const els = {};
 
-    // Language switch
-    document.querySelectorAll(".lang-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const lang = btn.getAttribute("data-lang");
-        document
-          .querySelectorAll(".lang-btn")
-          .forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        applyI18n(lang);
-      });
-    });
+    function qs(id) {
+      return document.getElementById(id);
+    }
 
-    // Apply initial lang
-    applyI18n(currentLang);
-    document
-      .querySelector(`.lang-btn[data-lang="${currentLang}"]`)
-      ?.classList.add("active");
+    function captureElements() {
+      els.userName = qs("userName");
+      els.sessionCityLabel = qs("sessionCityLabel");
+      els.citySearch = qs("citySearch");
+      els.citySearchBtn = qs("citySearchBtn");
+      els.cityList = qs("cityList");
+      els.map = qs("map");
+      els.loadingOverlay = qs("loadingOverlay");
+      els.loadingText = qs("loadingText");
 
-    // User name
-    const nameInput = document.getElementById("user-name-input");
-    const savedName = localStorage.getItem("gw_user_name");
-    if (savedName) nameInput.value = savedName;
+      els.summaryCityName = qs("summary-city-name");
+      els.summaryCityCoords = qs("summary-city-coords");
+      els.summaryTempCurrent = qs("summary-temp-current");
+      els.summaryTempMinMax = qs("summary-temp-minmax");
+      els.summaryRain = qs("summary-rain");
+      els.summaryRainDetail = qs("summary-rain-detail");
+      els.summaryAqi = qs("summary-aqi");
+      els.summaryAqiDetail = qs("summary-aqi-detail");
+      els.summaryElevation = qs("summary-elevation");
+      els.summaryElevationDetail = qs("summary-elevation-detail");
+      els.summaryClimateTrend = qs("summary-climate-trend");
+      els.summaryClimateTrendDetail = qs("summary-climate-trend-detail");
 
-    nameInput.addEventListener("change", () => {
-      const val = nameInput.value.trim();
-      if (val.length > 0) {
-        localStorage.setItem("gw_user_name", val);
-      } else {
-        localStorage.removeItem("gw_user_name");
+      els.summaryAirPm = qs("summary-air-pm");
+      els.summaryAirPmDetail = qs("summary-air-pm-detail");
+      els.summaryAirGas = qs("summary-air-gas");
+      els.summaryAirGasDetail = qs("summary-air-gas-detail");
+      els.summaryMarine = qs("summary-marine");
+      els.summaryMarineDetail = qs("summary-marine-detail");
+      els.summaryFlood = qs("summary-flood");
+      els.summaryFloodDetail = qs("summary-flood-detail");
+      els.summaryEnsemble = qs("summary-ensemble");
+      els.summaryEnsembleDetail = qs("summary-ensemble-detail");
+
+      els.feedbackForm = qs("feedbackForm");
+      els.feedbackStatus = qs("feedbackStatus");
+      els.concernRange = qs("concernRange");
+      els.focusSelect = qs("focusSelect");
+      els.commentInput = qs("commentInput");
+
+      els.chartDailyTempRain = qs("chart-daily-temp-rain");
+      els.chartAirQuality = qs("chart-air-quality");
+      els.chartClimateTrend = qs("chart-climate-trend");
+    }
+
+    // ============================
+    // Local storage
+    // ============================
+    const LS_KEY = "climate_reality_app_state_v1";
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(LS_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed.lang) state.lang = parsed.lang;
+        if (parsed.userName) state.userName = parsed.userName;
+        if (parsed.selectedLocation) state.selectedLocation = parsed.selectedLocation;
+      } catch (e) {
+        console.warn("Failed to load state", e);
       }
-    });
-
-    // Status indicator
-    const statusDot = document.getElementById("status-dot");
-    const statusText = document.getElementById("status-text");
-    function setStatus(ok, message, level = "ok") {
-      statusDot.classList.remove("warn", "err");
-      if (level === "warn") statusDot.classList.add("warn");
-      else if (level === "err") statusDot.classList.add("err");
-      statusText.textContent = message;
     }
 
-    if (supabase) {
-      setStatus(true, "Supabase cache: connected");
-    } else {
-      setStatus(
-        false,
-        "Supabase cache: not configured – only live API will be used.",
-        "warn"
-      );
+    function saveState() {
+      const toSave = {
+        lang: state.lang,
+        userName: state.userName,
+        selectedLocation: state.selectedLocation,
+      };
+      localStorage.setItem(LS_KEY, JSON.stringify(toSave));
     }
 
-    // ====== MAP ======
-    let map;
-    let cityMarker;
+    // ============================
+    // i18n helpers
+    // ============================
+    function applyTranslations() {
+      const dict = translations[state.lang] || translations.en;
+      document.querySelectorAll("[data-i18n]").forEach((el) => {
+        const key = el.getAttribute("data-i18n");
+        const val = dict[key];
+        if (val) {
+          el.textContent = val;
+        }
+      });
+
+      document.documentElement.lang = state.lang;
+    }
+
+    function setLanguage(lang) {
+      state.lang = lang;
+      saveState();
+      applyTranslations();
+
+      document.querySelectorAll(".lang-toggle button").forEach((btn) => {
+        btn.classList.toggle("active", btn.dataset.lang === lang);
+      });
+    }
+
+    // ============================
+    // Map
+    // ============================
     function initMap() {
-      map = L.map("map", {
+      state.map = L.map(els.map, {
         worldCopyJump: true,
-        zoomControl: false,
+        scrollWheelZoom: true,
       }).setView([20, 0], 2);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "© OpenStreetMap contributors",
-      }).addTo(map);
+        attribution: "© OpenStreetMap",
+      }).addTo(state.map);
 
-      // Add markers for all cities
-      CITIES.forEach((city) => {
-        const marker = L.circleMarker([city.lat, city.lon], {
-          radius: 5,
-          color: "#38bdf8",
-          fillColor: "#38bdf8",
-          fillOpacity: 0.8,
-        }).addTo(map);
-        marker.bindPopup(`${city.name_en} (${city.country})`);
+      state.map.on("click", (e) => {
+        const { lat, lng } = e.latlng;
+        pickLocationFromCoords(lat, lng, "Map click");
       });
     }
 
-    function focusCityOnMap(city) {
-      if (!map) return;
-      map.setView([city.lat, city.lon], 5);
-      if (cityMarker) {
-        cityMarker.setLatLng([city.lat, city.lon]);
-      } else {
-        cityMarker = L.marker([city.lat, city.lon]).addTo(map);
+    function setMapMarker(lat, lon, label) {
+      if (!state.map) return;
+      if (state.mapMarker) {
+        state.map.removeLayer(state.mapMarker);
       }
+      state.mapMarker = L.marker([lat, lon]).addTo(state.map).bindPopup(label);
+      state.map.setView([lat, lon], 7);
     }
 
-    document.getElementById("btn-zoom-world").addEventListener("click", () => {
-      if (!map) return;
-      map.setView([20, 0], 2);
-    });
+    // ============================
+    // City list + search
+    // ============================
+    function renderCityList() {
+      els.cityList.innerHTML = "";
+      POPULAR_CITIES.forEach((city) => {
+        const div = document.createElement("button");
+        div.type = "button";
+        div.className = "city-pill";
+        div.dataset.cityId = city.id;
 
-    // Init map after DOM paints
-    setTimeout(initMap, 50);
+        const spanName = document.createElement("span");
+        spanName.className = "city-name";
+        spanName.textContent = city.name;
 
-    // ====== CITY SELECT ======
-    const citySelect = document.getElementById("city-select");
-    function fillCitySelect() {
-      citySelect.innerHTML = "";
-      CITIES.forEach((c) => {
+        const spanCountry = document.createElement("span");
+        spanCountry.className = "city-country";
+        spanCountry.textContent = city.country;
+
+        div.appendChild(spanName);
+        div.appendChild(spanCountry);
+        div.addEventListener("click", () => {
+          selectCity(city);
+        });
+
+        els.cityList.appendChild(div);
+      });
+
+      const dataList = qs("cityDatalist");
+      dataList.innerHTML = "";
+      POPULAR_CITIES.forEach((c) => {
         const opt = document.createElement("option");
-        const label = currentLang === "tr" ? c.name_tr : c.name_en;
-        opt.value = c.slug;
-        opt.textContent = `${label} (${c.country})`;
-        citySelect.appendChild(opt);
+        opt.value = `${c.name}, ${c.country}`;
+        dataList.appendChild(opt);
       });
 
-      const last = localStorage.getItem("gw_last_city");
-      if (last && CITIES.find((c) => c.slug === last)) {
-        citySelect.value = last;
-      }
+      highlightSelectedCity();
     }
-    fillCitySelect();
 
-    // When language changes, rebuild options
-    const langObserver = new MutationObserver(() => fillCitySelect());
-    langObserver.observe(
-      document.querySelector('.lang-btn[data-lang="en"]'),
-      { attributes: true }
-    );
-
-    // ====== CHARTS ======
-    let annualChart;
-    let barsChart;
-
-    function ensureAnnualChart(ctx) {
-      if (annualChart) return annualChart;
-      annualChart = new Chart(ctx, {
-        type: "line",
-        data: { labels: [], datasets: [] },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              ticks: { color: "#9ca3af" },
-              grid: { color: "rgba(55, 65, 81, 0.5)" },
-            },
-            y: {
-              ticks: { color: "#9ca3af" },
-              grid: { color: "rgba(55, 65, 81, 0.5)" },
-              title: { display: true, text: "°C" },
-            },
-          },
-          plugins: {
-            legend: {
-              labels: { color: "#e5e7eb" },
-            },
-          },
-        },
+    function highlightSelectedCity() {
+      const { selectedLocation } = state;
+      document.querySelectorAll(".city-pill").forEach((btn) => {
+        const cityId = btn.dataset.cityId;
+        if (!selectedLocation) {
+          btn.classList.remove("active");
+          return;
+        }
+        btn.classList.toggle("active", selectedLocation.id === cityId);
       });
-      return annualChart;
     }
 
-    function ensureBarsChart(ctx) {
-      if (barsChart) return barsChart;
-      barsChart = new Chart(ctx, {
-        type: "bar",
-        data: { labels: ["Baseline", "Recent", "Future"], datasets: [] },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              ticks: { color: "#9ca3af" },
-              grid: { display: false },
-            },
-            y: {
-              ticks: { color: "#9ca3af" },
-              grid: { color: "rgba(55, 65, 81, 0.5)" },
-              title: { display: true, text: "°C" },
-            },
-          },
-          plugins: {
-            legend: {
-              labels: { color: "#e5e7eb" },
-            },
-          },
-        },
-      });
-      return barsChart;
-    }
-
-    // ====== DATA HELPERS ======
-    function aggregateAnnual(dates, values) {
-      const perYear = {};
-      for (let i = 0; i < dates.length; i++) {
-        const d = new Date(dates[i]);
-        if (Number.isNaN(d.getTime())) continue;
-        const year = d.getUTCFullYear();
-        const v = values[i];
-        if (v == null) continue;
-        if (!perYear[year]) perYear[year] = { sum: 0, count: 0 };
-        perYear[year].sum += v;
-        perYear[year].count += 1;
-      }
-      const annual = {};
-      Object.entries(perYear).forEach(([year, { sum, count }]) => {
-        annual[year] = sum / count;
-      });
-      return annual;
-    }
-
-    function annualToSortedArray(annual) {
-      const years = Object.keys(annual)
-        .map((y) => Number(y))
-        .sort((a, b) => a - b);
-      return years.map((year) => ({ year, value: annual[year] }));
-    }
-
-    function windowMean(annual, startYear, endYear) {
-      let sum = 0;
-      let count = 0;
-      for (let y = startYear; y <= endYear; y++) {
-        const v = annual[String(y)];
-        if (v == null) continue;
-        sum += v;
-        count += 1;
-      }
-      return count > 0 ? sum / count : null;
-    }
-
-    // ====== SUPABASE CACHE FUNCTIONS ======
-    async function getCachedClimate(city) {
-      if (!supabase) return null;
-      const { data, error } = await supabase
-        .from("city_climate_cache")
-        .select("annual_temp, annual_precip, last_fetched")
-        .eq("city_slug", city.slug)
-        .maybeSingle();
-      if (error) {
-        console.warn("Supabase fetch error", error);
-        return null;
-      }
-      if (!data) return null;
-      return {
-        annualTemp: data.annual_temp || {},
-        annualPrecip: data.annual_precip || {},
-      };
-    }
-
-    async function storeCachedClimate(city, annualTemp, annualPrecip) {
-      if (!supabase) return;
-      const payload = {
-        city_slug: city.slug,
-        city_name: city.name_en,
+    function selectCity(city) {
+      const location = {
+        id: city.id,
+        name: city.name,
         country: city.country,
         latitude: city.lat,
         longitude: city.lon,
-        model: "CMCC_CM2_VHR4",
-        annual_temp: annualTemp,
-        annual_precip: annualPrecip,
-        last_fetched: new Date().toISOString(),
+        timezone: "auto",
       };
-      const { error } = await supabase
-        .from("city_climate_cache")
-        .upsert(payload, { onConflict: "city_slug" });
-      if (error) {
-        console.warn("Supabase upsert error", error);
-      }
+      setSelectedLocation(location);
+      fetchAllForLocation(location);
     }
 
-    // ====== OPEN-METEO FETCH ======
-    async function fetchClimateFromApi(city) {
-      const params = new URLSearchParams({
-        latitude: city.lat,
-        longitude: city.lon,
-        start_date: "1950-01-01",
-        end_date: "2050-01-01",
-        models: "CMCC_CM2_VHR4",
-        daily: "temperature_2m_mean,precipitation_sum",
-        temperature_unit: "celsius",
-        precipitation_unit: "mm",
-        timeformat: "iso8601",
-      });
-      const url = `${OPEN_METEO_BASE}?${params.toString()}`;
-      const res = await fetch(url);
-      if (!res.ok) {
-        throw new Error(`Open-Meteo error ${res.status}`);
+    async function searchCityByName() {
+      const query = els.citySearch.value.trim();
+      if (!query) return;
+
+      const localCandidate = POPULAR_CITIES.find((c) =>
+        `${c.name}, ${c.country}`.toLowerCase() === query.toLowerCase()
+      );
+      if (localCandidate) {
+        selectCity(localCandidate);
+        return;
       }
-      const json = await res.json();
-      const dates = json.daily?.time || [];
-      const temps = json.daily?.temperature_2m_mean || [];
-      const precs = json.daily?.precipitation_sum || [];
-      const annualTemp = aggregateAnnual(dates, temps);
-      const annualPrecip = aggregateAnnual(dates, precs);
-      return { annualTemp, annualPrecip };
-    }
 
-    // ====== UI UPDATE FOR CITY ======
-    const cityMetaCoords = document.getElementById("city-meta-coords");
-    const cityMetaBaseline = document.getElementById("city-meta-baseline");
-    const cityMetaCurrent = document.getElementById("city-meta-current");
-    const metricGlobalBaseline = document.getElementById("metric-global-baseline");
-    const metricGlobalNow = document.getElementById("metric-global-now");
-    const metricGlobalDelta = document.getElementById("metric-global-delta");
-    const metricCityNow = document.getElementById("metric-city-now");
-    const metricCityDelta = document.getElementById("metric-city-delta");
-    const metricFuture = document.getElementById("metric-future");
-    const metricFutureNote = document.getElementById("metric-future-note");
-    const deltaSummary = document.getElementById("delta-summary");
-
-    async function loadCity() {
-      const slug = citySelect.value;
-      const city = CITIES.find((c) => c.slug === slug);
-      if (!city) return;
-
-      localStorage.setItem("gw_last_city", city.slug);
-      focusCityOnMap(city);
-      cityMetaCoords.textContent = `${city.lat.toFixed(2)}, ${city.lon.toFixed(
-        2
-      )}`;
-
-      const btn = document.getElementById("btn-load-city");
-      btn.disabled = true;
-      btn.textContent = currentLang === "tr" ? "Yükleniyor..." : "Loading...";
-
-      let annualTemp;
-      let annualPrecip;
-      let fromCache = false;
+      showLoading("Searching city…");
 
       try {
-        // 1) try Supabase cache
-        const cached = await getCachedClimate(city);
-        if (cached && Object.keys(cached.annualTemp || {}).length > 0) {
-          annualTemp = cached.annualTemp;
-          annualPrecip = cached.annualPrecip || {};
-          fromCache = true;
-        } else {
-          // 2) else fetch from Open-Meteo
-          const fresh = await fetchClimateFromApi(city);
-          annualTemp = fresh.annualTemp;
-          annualPrecip = fresh.annualPrecip;
-          // store in Supabase if possible
-          await storeCachedClimate(city, annualTemp, annualPrecip);
-        }
+        const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
+        url.searchParams.set("name", query);
+        url.searchParams.set("count", "1");
+        url.searchParams.set("language", state.lang === "tr" ? "tr" : "en");
+        url.searchParams.set("format", "json");
 
-        const arr = annualToSortedArray(annualTemp);
-        const labels = arr.map((p) => p.year);
-        const values = arr.map((p) => p.value);
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error("Geocoding failed");
+        const data = await res.json();
+        if (!data.results || data.results.length === 0) {
+          alert(
+            state.lang === "tr"
+              ? "Şehir bulunamadı. Yazımı kontrol et."
+              : "No city found. Please check spelling."
+          );
+          return;
+        }
+        const r = data.results[0];
+        const location = {
+          id: `geo_${r.id ?? `${r.latitude}_${r.longitude}`}`,
+          name: r.name,
+          country: r.country ?? "",
+          latitude: r.latitude,
+          longitude: r.longitude,
+          timezone: r.timezone ?? "auto",
+        };
+        setSelectedLocation(location);
+        fetchAllForLocation(location);
+      } catch (err) {
+        console.error(err);
+        alert(
+          state.lang === "tr"
+            ? "Şehir aranırken bir hata oluştu."
+            : "There was an error searching for this city."
+        );
+      } finally {
+        hideLoading();
+      }
+    }
 
-        // Compute windows
-        const baselineMean = windowMean(annualTemp, 1951, 1980);
-        const recentMean = windowMean(annualTemp, 1991, 2020);
-        const futureMean = windowMean(annualTemp, 2031, 2050);
+    // ============================
+    // Loading helpers
+    // ============================
+    function showLoading(text) {
+      els.loadingOverlay.classList.remove("hidden");
+      if (text) els.loadingText.textContent = text;
+    }
 
-        // Update city meta chips
-        if (baselineMean != null) {
-          const txt =
-            currentLang === "tr"
-              ? `1951–1980 ort.: ${baselineMean.toFixed(1)} °C`
-              : `1951–1980 mean: ${baselineMean.toFixed(1)} °C`;
-          cityMetaBaseline.textContent = txt;
-        } else {
-          cityMetaBaseline.textContent = "–";
-        }
-        if (recentMean != null) {
-          const txt =
-            currentLang === "tr"
-              ? `1991–2020 ort.: ${recentMean.toFixed(1)} °C`
-              : `1991–2020 mean: ${recentMean.toFixed(1)} °C`;
-          cityMetaCurrent.textContent = txt;
-        } else {
-          cityMetaCurrent.textContent = "–";
-        }
+    function hideLoading() {
+      els.loadingOverlay.classList.add("hidden");
+    }
 
-        // Update overview cards (example based on first loaded city)
-        if (baselineMean != null) {
-          metricGlobalBaseline.textContent = `${baselineMean.toFixed(1)} °C`;
-        }
-        if (recentMean != null && baselineMean != null) {
-          metricGlobalNow.textContent = `${recentMean.toFixed(1)} °C`;
-          const delta = recentMean - baselineMean;
-          metricGlobalDelta.textContent =
-            (delta >= 0 ? "+" : "") + delta.toFixed(1) + " °C";
-        }
-        if (recentMean != null) {
-          metricCityNow.textContent = `${recentMean.toFixed(1)} °C`;
-          metricCityDelta.textContent =
-            currentLang === "tr"
-              ? `${city.name_tr} için 1991–2020 ortalaması`
-              : `1991–2020 mean for ${city.name_en}`;
-        }
-        if (futureMean != null && baselineMean != null) {
-          metricFuture.textContent = `${futureMean.toFixed(1)} °C`;
-          const deltaFuture = futureMean - baselineMean;
-          metricFutureNote.textContent =
-            (deltaFuture >= 0 ? "+" : "") +
-            deltaFuture.toFixed(1) +
-            " °C vs 1951–1980";
-        }
+    // ============================
+    // Open-Meteo requests
+    // ============================
+    async function fetchForecast(location) {
+      const url = new URL("https://api.open-meteo.com/v1/forecast");
+      url.searchParams.set("latitude", location.latitude);
+      url.searchParams.set("longitude", location.longitude);
+      url.searchParams.set("hourly", "temperature_2m,precipitation");
+      url.searchParams.set(
+        "daily",
+        "temperature_2m_max,temperature_2m_min,precipitation_sum"
+      );
+      url.searchParams.set("current_weather", "true");
+      url.searchParams.set("forecast_days", "7");
+      url.searchParams.set("timezone", location.timezone || "auto");
 
-        // Update annual line chart
-        const annualCtx = document
-          .getElementById("chart-annual")
-          .getContext("2d");
-        const aChart = ensureAnnualChart(annualCtx);
-        aChart.data.labels = labels;
-        aChart.data.datasets = [
-          {
-            label:
-              currentLang === "tr"
-                ? `${city.name_tr} yıllık ort. sıcaklık`
-                : `${city.name_en} annual mean temperature`,
-            data: values,
-            borderColor: "#38bdf8",
-            backgroundColor: "rgba(56, 189, 248, 0.1)",
-            borderWidth: 2,
-            pointRadius: 0,
-            tension: 0.25,
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Forecast API error");
+      return res.json();
+    }
+
+    async function fetchAirQuality(location) {
+      const url = new URL("https://air-quality-api.open-meteo.com/v1/air-quality");
+      url.searchParams.set("latitude", location.latitude);
+      url.searchParams.set("longitude", location.longitude);
+      url.searchParams.set(
+        "hourly",
+        "pm10,pm2_5,carbon_monoxide,ozone,nitrogen_dioxide,sulphur_dioxide,us_aqi"
+      );
+      url.searchParams.set("timezone", location.timezone || "auto");
+
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Air quality API error");
+      return res.json();
+    }
+
+    async function fetchClimateTrend(location) {
+      // Very simple demo: compare modeled yearly average max temp for 1990 vs 2050
+      const model = "CMCC_CM2_VHR4";
+      async function fetchYear(year) {
+        const url = new URL("https://climate-api.open-meteo.com/v1/climate");
+        url.searchParams.set("latitude", location.latitude);
+        url.searchParams.set("longitude", location.longitude);
+        url.searchParams.set("start_date", `${year}-01-01`);
+        url.searchParams.set("end_date", `${year}-12-31`);
+        url.searchParams.set("models", model);
+        url.searchParams.set("daily", "temperature_2m_max");
+        url.searchParams.set("timezone", "auto");
+        const res = await fetch(url.toString());
+        if (!res.ok) throw new Error("Climate API error");
+        return res.json();
+      }
+
+      const [baseline, future] = await Promise.all([fetchYear(1990), fetchYear(2050)]);
+      return { model, baseline, future };
+    }
+
+    async function fetchElevation(location) {
+      const url = new URL("https://api.open-meteo.com/v1/elevation");
+      url.searchParams.set("latitude", location.latitude);
+      url.searchParams.set("longitude", location.longitude);
+
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error("Elevation API error");
+      return res.json();
+    }
+
+    async function fetchMarineIfCoastal(location) {
+      // Simple heuristic: treat as coastal if abs(lat) < 70 and we just ask marine API.
+      // If it fails or is irrelevant, we'll just show N/A.
+      if (Math.abs(location.latitude) > 70) return null;
+
+      try {
+        const url = new URL("https://marine-api.open-meteo.com/v1/marine");
+        url.searchParams.set("latitude", location.latitude);
+        url.searchParams.set("longitude", location.longitude);
+        url.searchParams.set("hourly", "wave_height,sea_surface_temperature");
+        url.searchParams.set("timezone", "auto");
+
+        const res = await fetch(url.toString());
+        if (!res.ok) return null;
+        return res.json();
+      } catch {
+        return null;
+      }
+    }
+
+    async function fetchFlood(location) {
+      try {
+        const url = new URL("https://flood-api.open-meteo.com/v1/flood");
+        url.searchParams.set("latitude", location.latitude);
+        url.searchParams.set("longitude", location.longitude);
+        url.searchParams.set("timezone", "auto");
+
+        const res = await fetch(url.toString());
+        if (!res.ok) return null;
+        return res.json();
+      } catch {
+        return null;
+      }
+    }
+
+    async function fetchEnsemble(location) {
+      try {
+        const url = new URL("https://ensemble-api.open-meteo.com/v1/ensemble");
+        url.searchParams.set("latitude", location.latitude);
+        url.searchParams.set("longitude", location.longitude);
+        url.searchParams.set("hourly", "precipitation,temperature_2m");
+        url.searchParams.set("timezone", "auto");
+
+        const res = await fetch(url.toString());
+        if (!res.ok) return null;
+        return res.json();
+      } catch {
+        return null;
+      }
+    }
+
+    // ============================
+    // Charts
+    // ============================
+    function buildDailyTempRainChart(daily) {
+      if (!els.chartDailyTempRain) return;
+      const labels = daily.time;
+      const tempsMax = daily.temperature_2m_max;
+      const tempsMin = daily.temperature_2m_min;
+      const rain = daily.precipitation_sum;
+
+      if (state.charts.dailyTempRain) state.charts.dailyTempRain.destroy();
+
+      state.charts.dailyTempRain = new Chart(els.chartDailyTempRain.getContext("2d"), {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              type: "line",
+              label: "Max °C",
+              data: tempsMax,
+              yAxisID: "y1",
+            },
+            {
+              type: "line",
+              label: "Min °C",
+              data: tempsMin,
+              yAxisID: "y1",
+            },
+            {
+              type: "bar",
+              label: "Rain (mm)",
+              data: rain,
+              yAxisID: "y2",
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y1: {
+              type: "linear",
+              position: "left",
+            },
+            y2: {
+              type: "linear",
+              position: "right",
+              grid: { drawOnChartArea: false },
+            },
           },
-        ];
-        aChart.update();
-
-        // Update bars chart
-        const bctx = document.getElementById("chart-bars").getContext("2d");
-        const bChart = ensureBarsChart(bctx);
-        bChart.data.datasets = [
-          {
-            label: currentLang === "tr" ? "Sıcaklık ortalaması" : "Mean temperature",
-            data: [
-              baselineMean != null ? baselineMean : null,
-              recentMean != null ? recentMean : null,
-              futureMean != null ? futureMean : null,
-            ],
-            backgroundColor: [
-              "rgba(59, 130, 246, 0.7)",
-              "rgba(239, 68, 68, 0.8)",
-              "rgba(245, 158, 11, 0.85)",
-            ],
+          plugins: {
+            legend: { display: true },
           },
-        ];
-        bChart.update();
+        },
+      });
+    }
 
-        // Delta summary
-        let summary;
-        if (baselineMean != null && recentMean != null && futureMean != null) {
-          const deltaNow = recentMean - baselineMean;
-          const deltaFuture = futureMean - baselineMean;
-          if (currentLang === "tr") {
-            summary = `${city.name_tr} için 1951–1980 dönemine göre 1991–2020'de yaklaşık ${
-              deltaNow >= 0 ? "+" : ""
-            }${deltaNow.toFixed(
-              1
-            )} °C, 2031–2050 döneminde ise yaklaşık ${
-              deltaFuture >= 0 ? "+" : ""
-            }${deltaFuture.toFixed(
-              1
-            )} °C ısınma görülüyor (model verisine göre).`;
-          } else {
-            summary = `For ${city.name_en}, the model suggests about ${
-              deltaNow >= 0 ? "+" : ""
-            }${deltaNow.toFixed(
-              1
-            )} °C warming in 1991–2020 vs 1951–1980, and about ${
-              deltaFuture >= 0 ? "+" : ""
-            }${deltaFuture.toFixed(
-              1
-            )} °C by 2031–2050 (relative to the same baseline).`;
-          }
-        } else {
-          summary =
-            currentLang === "tr"
-              ? "Bu şehir için yıllık iklim serisi eksik olabilir. Grafiğe trend olarak bakmak daha sağlıklı."
-              : "The annual climate series for this city may have gaps. Use the chart mainly for trend, not exact values.";
+    function buildAirQualityChart(hourly) {
+      if (!els.chartAirQuality || !hourly.time) return;
+
+      const labels = hourly.time.slice(0, 24);
+      const pm25 = hourly.pm2_5?.slice(0, 24) ?? [];
+      const pm10 = hourly.pm10?.slice(0, 24) ?? [];
+      const aqi = hourly.us_aqi?.slice(0, 24) ?? [];
+
+      if (state.charts.airQuality) state.charts.airQuality.destroy();
+
+      state.charts.airQuality = new Chart(els.chartAirQuality.getContext("2d"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            { label: "PM2.5", data: pm25 },
+            { label: "PM10", data: pm10 },
+            { label: "US AQI", data: aqi },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: true } },
+        },
+      });
+    }
+
+    function buildClimateTrendChart(climate) {
+      if (!els.chartClimateTrend) return;
+      const { baseline, future } = climate;
+
+      const timesBase = baseline?.daily?.time ?? [];
+      const tempsBase = baseline?.daily?.temperature_2m_max ?? [];
+      const timesFuture = future?.daily?.time ?? [];
+      const tempsFuture = future?.daily?.temperature_2m_max ?? [];
+
+      if (state.charts.climateTrend) state.charts.climateTrend.destroy();
+
+      state.charts.climateTrend = new Chart(els.chartClimateTrend.getContext("2d"), {
+        type: "line",
+        data: {
+          labels: timesBase,
+          datasets: [
+            {
+              label: "1990 max °C (model)",
+              data: tempsBase,
+            },
+            {
+              label: "2050 max °C (model)",
+              data: tempsFuture,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: true } },
+        },
+      });
+    }
+
+    // ============================
+    // Supabase logging
+    // ============================
+    async function logSnapshotToSupabase(location, forecast, air, climate, elevation, marine, flood, ensemble) {
+      const currentTemp = forecast.current_weather?.temperature ?? null;
+      const daily = forecast.daily ?? {};
+      const todayIndex = 0;
+      const tempMin = daily.temperature_2m_min?.[todayIndex] ?? null;
+      const tempMax = daily.temperature_2m_max?.[todayIndex] ?? null;
+      const precipToday = daily.precipitation_sum?.[todayIndex] ?? null;
+
+      const avgRainNext7 =
+        daily.precipitation_sum && daily.precipitation_sum.length
+          ? daily.precipitation_sum.reduce((a, b) => a + b, 0) / daily.precipitation_sum.length
+          : null;
+
+      const hourlyAir = air.hourly ?? {};
+      const lastIdx = (hourlyAir.us_aqi?.length ?? 1) - 1;
+      const aqi = hourlyAir.us_aqi?.[lastIdx] ?? null;
+
+      const pm10 = hourlyAir.pm10?.[lastIdx] ?? null;
+      const pm25 = hourlyAir.pm2_5?.[lastIdx] ?? null;
+      const ozone = hourlyAir.ozone?.[lastIdx] ?? null;
+      const co = hourlyAir.carbon_monoxide?.[lastIdx] ?? null;
+      const no2 = hourlyAir.nitrogen_dioxide?.[lastIdx] ?? null;
+      const so2 = hourlyAir.sulphur_dioxide?.[lastIdx] ?? null;
+
+      let climateTrend = null;
+      if (climate?.baseline?.daily?.temperature_2m_max && climate?.future?.daily?.temperature_2m_max) {
+        const avg = (arr) => (arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null);
+        const baselineAvg = avg(climate.baseline.daily.temperature_2m_max);
+        const futureAvg = avg(climate.future.daily.temperature_2m_max);
+        if (baselineAvg != null && futureAvg != null) {
+          const decades = 6; // 1990 -> 2050
+          climateTrend = (futureAvg - baselineAvg) / decades;
         }
-        deltaSummary.textContent = summary;
+      }
 
-        setStatus(
-          true,
-          fromCache
-            ? "Loaded from Supabase cache; climate API used only when needed."
-            : "Loaded from Open-Meteo Climate API and cached to Supabase."
+      const elevVal = Array.isArray(elevation?.elevation) ? elevation.elevation[0] : null;
+
+      let seaTemp = null;
+      if (marine?.hourly?.sea_surface_temperature && marine.hourly.sea_surface_temperature.length) {
+        const last = marine.hourly.sea_surface_temperature.length - 1;
+        seaTemp = marine.hourly.sea_surface_temperature[last];
+      }
+
+      let floodIndex = null;
+      if (flood?.hourly) {
+        const firstKey = Object.keys(flood.hourly).find((k) => k !== "time");
+        if (firstKey && flood.hourly[firstKey]?.length) {
+          floodIndex = flood.hourly[firstKey][0];
+        }
+      }
+
+      let ensembleRain = null;
+      if (ensemble?.hourly?.precipitation && ensemble.hourly.precipitation.length) {
+        const avg = ensemble.hourly.precipitation.reduce((a, b) => a + b, 0) / ensemble.hourly.precipitation.length;
+        ensembleRain = avg;
+      }
+
+      const payload = {
+        user_name: state.userName || null,
+        city_name: location.name,
+        country: location.country || null,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        temp_now_c: currentTemp,
+        temp_min_c: tempMin,
+        temp_max_c: tempMax,
+        precip_24h_mm: precipToday,
+        avg_rain_next7d_mm: avgRainNext7,
+        air_quality_index: aqi,
+        pm10,
+        pm2_5: pm25,
+        ozone,
+        co,
+        no2,
+        so2,
+        sea_surface_temp_c: seaTemp,
+        flood_index: floodIndex,
+        climate_trend_c_per_decade: climateTrend,
+        elevation_m: elevVal,
+        ensemble_rain_mm: ensembleRain,
+      };
+
+      try {
+        await supabase.from("city_climate_snapshots").insert([payload]);
+      } catch (e) {
+        console.warn("Supabase insert failed", e);
+      }
+    }
+
+    async function logFeedbackToSupabase(location, concernLevel, focus, comment) {
+      if (!location) return;
+      const payload = {
+        user_name: state.userName || null,
+        city_name: location.name,
+        country: location.country || null,
+        concern_level: concernLevel,
+        focus,
+        comment: comment || null,
+      };
+      try {
+        await supabase.from("city_climate_feedback").insert([payload]);
+        els.feedbackStatus.textContent =
+          state.lang === "tr" ? "Kaydedildi ✅" : "Saved ✅";
+      } catch (e) {
+        console.warn("Feedback insert failed", e);
+        els.feedbackStatus.textContent =
+          state.lang === "tr" ? "Kaydedilemedi ❌" : "Could not save ❌";
+      }
+    }
+
+    // ============================
+    // UI updates
+    // ============================
+    function setSelectedLocation(location) {
+      state.selectedLocation = location;
+      saveState();
+
+      els.sessionCityLabel.textContent = `${location.name}${
+        location.country ? " · " + location.country : ""
+      }`;
+      els.summaryCityName.textContent = location.name;
+      els.summaryCityCoords.textContent = `${location.latitude.toFixed(
+        3
+      )}, ${location.longitude.toFixed(3)}`;
+
+      setMapMarker(location.latitude, location.longitude, location.name);
+      highlightSelectedCity();
+    }
+
+    function updateOverviewUI(location, forecast, air, elevation, climate) {
+      const currentTemp = forecast.current_weather?.temperature ?? null;
+      const daily = forecast.daily ?? {};
+      const todayIndex = 0;
+
+      const tempMin = daily.temperature_2m_min?.[todayIndex] ?? null;
+      const tempMax = daily.temperature_2m_max?.[todayIndex] ?? null;
+      const precipToday = daily.precipitation_sum?.[todayIndex] ?? null;
+
+      if (currentTemp != null) {
+        els.summaryTempCurrent.textContent = `${currentTemp.toFixed(1)} °C`;
+      } else {
+        els.summaryTempCurrent.textContent = "–";
+      }
+
+      if (tempMin != null && tempMax != null) {
+        els.summaryTempMinMax.textContent = `${tempMin.toFixed(
+          1
+        )} – ${tempMax.toFixed(1)} °C`;
+      } else {
+        els.summaryTempMinMax.textContent = "–";
+      }
+
+      if (precipToday != null) {
+        els.summaryRain.textContent = `${precipToday.toFixed(1)} mm`;
+      } else {
+        els.summaryRain.textContent = "–";
+      }
+
+      if (daily.precipitation_sum && daily.precipitation_sum.length) {
+        const avg =
+          daily.precipitation_sum.reduce((a, b) => a + b, 0) /
+          daily.precipitation_sum.length;
+        els.summaryRainDetail.textContent = `7-day avg: ${avg.toFixed(1)} mm/day`;
+      } else {
+        els.summaryRainDetail.textContent = "–";
+      }
+
+      const hourlyAir = air.hourly ?? {};
+      const len = hourlyAir.us_aqi?.length ?? 0;
+      if (len > 0) {
+        const lastIdx = len - 1;
+        const aqi = hourlyAir.us_aqi[lastIdx];
+        els.summaryAqi.textContent = `${aqi.toFixed(0)}`;
+        els.summaryAqiDetail.textContent =
+          state.lang === "tr"
+            ? "US AQI tahmini – değer ne kadar yüksekse risk o kadar fazla."
+            : "US AQI estimate – higher means more health risk.";
+      } else {
+        els.summaryAqi.textContent = "–";
+        els.summaryAqiDetail.textContent = "–";
+      }
+
+      const pm10 = hourlyAir.pm10?.[len - 1] ?? null;
+      const pm25 = hourlyAir.pm2_5?.[len - 1] ?? null;
+      els.summaryAirPm.textContent =
+        pm25 != null && pm10 != null ? `${pm25.toFixed(1)} / ${pm10.toFixed(1)}` : "–";
+      els.summaryAirPmDetail.textContent =
+        state.lang === "tr"
+          ? "PM2.5 akciğerlere en derin inen parçacıklardır."
+          : "PM2.5 are the tiniest particles that reach deep into lungs.";
+
+      const ozone = hourlyAir.ozone?.[len - 1] ?? null;
+      const co = hourlyAir.carbon_monoxide?.[len - 1] ?? null;
+      els.summaryAirGas.textContent =
+        ozone != null && co != null
+          ? `O₃ ${ozone.toFixed(1)}, CO ${co.toFixed(1)}`
+          : "–";
+      els.summaryAirGasDetail.textContent =
+        state.lang === "tr"
+          ? "Ozon ve karbon monoksit, şehirlerde sağlık riskini artırır."
+          : "Ozone and carbon monoxide increase health risks in cities.";
+
+      const elevVal = Array.isArray(elevation?.elevation)
+        ? elevation.elevation[0]
+        : null;
+      if (elevVal != null) {
+        els.summaryElevation.textContent = `${elevVal.toFixed(0)} m`;
+        els.summaryElevationDetail.textContent =
+          state.lang === "tr"
+            ? "Rakım, sıcaklık ve sel riskini etkiler."
+            : "Elevation affects temperature and flood risk.";
+      } else {
+        els.summaryElevation.textContent = "–";
+        els.summaryElevationDetail.textContent = "–";
+      }
+
+      if (
+        climate?.baseline?.daily?.temperature_2m_max &&
+        climate?.future?.daily?.temperature_2m_max
+      ) {
+        const avg = (arr) =>
+          arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
+        const baseAvg = avg(climate.baseline.daily.temperature_2m_max);
+        const futureAvg = avg(climate.future.daily.temperature_2m_max);
+        if (baseAvg != null && futureAvg != null) {
+          const delta = futureAvg - baseAvg;
+          els.summaryClimateTrend.textContent = `${delta.toFixed(1)} °C`;
+          els.summaryClimateTrendDetail.textContent =
+            state.lang === "tr"
+              ? "Model: 1990 ile 2050 yılları arasında ortalama maksimum sıcaklık farkı."
+              : "Model: difference in average max temperature between 1990 and 2050.";
+          const text =
+            state.lang === "tr"
+              ? `Bu model, ${location.name} için yaklaşık ${delta.toFixed(
+                  1
+                )} °C'lik bir ısınma öngörüyor (1990 → 2050).`
+              : `This model suggests about ${delta.toFixed(
+                  1
+                )} °C warming for ${location.name} (1990 → 2050).`;
+          qs("climateTrendStatus").textContent = text;
+        } else {
+          els.summaryClimateTrend.textContent = "–";
+          els.summaryClimateTrendDetail.textContent = "–";
+        }
+      } else {
+        els.summaryClimateTrend.textContent = "–";
+        els.summaryClimateTrendDetail.textContent = "–";
+      }
+    }
+
+    function updateMarineUI(marine) {
+      if (!marine || !marine.hourly) {
+        els.summaryMarine.textContent = "–";
+        els.summaryMarineDetail.textContent =
+          state.lang === "tr"
+            ? "Veri yok veya kıyıdan çok uzak."
+            : "No data or far from coast.";
+        return;
+      }
+      const temps = marine.hourly.sea_surface_temperature ?? [];
+      if (!temps.length) {
+        els.summaryMarine.textContent = "–";
+        els.summaryMarineDetail.textContent =
+          state.lang === "tr"
+            ? "Veri bulunamadı."
+            : "No marine data found.";
+        return;
+      }
+      const last = temps[temps.length - 1];
+      els.summaryMarine.textContent = `${last.toFixed(1)} °C`;
+      els.summaryMarineDetail.textContent =
+        state.lang === "tr"
+          ? "Deniz yüzeyi sıcaklığı deniz seviyesini ve fırtınaları etkiler."
+          : "Sea surface temperature influences sea level and storms.";
+    }
+
+    function updateFloodUI(flood) {
+      if (!flood || !flood.hourly) {
+        els.summaryFlood.textContent = "–";
+        els.summaryFloodDetail.textContent =
+          state.lang === "tr"
+            ? "Bu alan için ayrıntılı sel verisi olmayabilir."
+            : "Detailed flood indicators may not be available for this area.";
+        return;
+      }
+      const keys = Object.keys(flood.hourly).filter((k) => k !== "time");
+      if (!keys.length) {
+        els.summaryFlood.textContent = "–";
+        return;
+      }
+      const key = keys[0];
+      const val = flood.hourly[key]?.[0];
+      els.summaryFlood.textContent =
+        val != null ? val.toFixed(2) : "–";
+      els.summaryFloodDetail.textContent =
+        state.lang === "tr"
+          ? "Deneme amaçlı bir sel / yağış göstergesi."
+          : "Experimental flood / heavy rain indicator.";
+    }
+
+    function updateEnsembleUI(ensemble) {
+      if (!ensemble || !ensemble.hourly) {
+        els.summaryEnsemble.textContent = "–";
+        els.summaryEnsembleDetail.textContent =
+          state.lang === "tr"
+            ? "Topluluk tahmini verisi bulunamadı."
+            : "No ensemble forecast data found.";
+        return;
+      }
+      const rain = ensemble.hourly.precipitation ?? [];
+      if (!rain.length) {
+        els.summaryEnsemble.textContent = "–";
+        return;
+      }
+      const avg =
+        rain.reduce((a, b) => a + b, 0) / rain.length;
+      els.summaryEnsemble.textContent = `${avg.toFixed(2)} mm`;
+      els.summaryEnsembleDetail.textContent =
+        state.lang === "tr"
+          ? "Birden fazla model koşumunun ortalama yağış tahmini."
+          : "Average precipitation across many model members.";
+    }
+
+    // ============================
+    // Fetch all & orchestrate
+    // ============================
+    async function fetchAllForLocation(location) {
+      showLoading(
+        state.lang === "tr"
+          ? "Veriler yükleniyor…"
+          : "Loading data for city…"
+      );
+      try {
+        const [forecast, air, climate, elevation, marine, flood, ensemble] =
+          await Promise.all([
+            fetchForecast(location),
+            fetchAirQuality(location),
+            fetchClimateTrend(location),
+            fetchElevation(location),
+            fetchMarineIfCoastal(location),
+            fetchFlood(location),
+            fetchEnsemble(location),
+          ]);
+
+        updateOverviewUI(location, forecast, air, elevation, climate);
+        updateMarineUI(marine);
+        updateFloodUI(flood);
+        updateEnsembleUI(ensemble);
+
+        if (forecast.daily) buildDailyTempRainChart(forecast.daily);
+        if (air.hourly) buildAirQualityChart(air.hourly);
+        if (climate) buildClimateTrendChart(climate);
+
+        await logSnapshotToSupabase(
+          location,
+          forecast,
+          air,
+          climate,
+          elevation,
+          marine,
+          flood,
+          ensemble
         );
       } catch (err) {
         console.error(err);
-        setStatus(false, `Error loading city data: ${err.message}`, "err");
+        alert(
+          state.lang === "tr"
+            ? "Bazı veriler yüklenirken hata oluştu. Bir kısmı eksik olabilir."
+            : "Error while loading some data. Some parts may be missing."
+        );
       } finally {
-        btn.disabled = false;
-        btn.textContent =
-          currentLang === "tr" ? "Veriyi yükle" : "Load data";
+        hideLoading();
       }
     }
 
-    document.getElementById("btn-load-city").addEventListener("click", loadCity);
+    // ============================
+    // Tabs
+    // ============================
+    function initTabs() {
+      document.querySelectorAll(".tabs button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const tab = btn.dataset.tab;
+          document
+            .querySelectorAll(".tabs button")
+            .forEach((b) => b.classList.toggle("active", b === btn));
+          document.querySelectorAll(".tab-pane").forEach((pane) => {
+            pane.classList.toggle(
+              "active",
+              pane.id === `tab-${tab}`
+            );
+          });
+        });
+      });
+    }
 
-    document.getElementById("btn-use-last").addEventListener("click", () => {
-      const last = localStorage.getItem("gw_last_city");
-      if (last && CITIES.find((c) => c.slug === last)) {
-        citySelect.value = last;
-        loadCity();
-      }
-    });
+    // ============================
+    // Feedback form
+    // ============================
+    function initFeedbackForm() {
+      els.feedbackForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        els.feedbackStatus.textContent = "";
+        if (!state.selectedLocation) {
+          els.feedbackStatus.textContent =
+            state.lang === "tr"
+              ? "Önce bir şehir seç."
+              : "Please select a city first.";
+          return;
+        }
+        const concern = Number(els.concernRange.value || "3");
+        const focus = els.focusSelect.value;
+        const comment = els.commentInput.value.trim();
+        await logFeedbackToSupabase(
+          state.selectedLocation,
+          concern,
+          focus,
+          comment
+        );
+      });
+    }
 
-    // On first load, optionally auto-load last city
-    window.addEventListener("load", () => {
-      const last = localStorage.getItem("gw_last_city");
-      if (last && CITIES.find((c) => c.slug === last)) {
-        citySelect.value = last;
-        loadCity();
+    // ============================
+    // Initialization
+    // ============================
+    function initListeners() {
+      document.querySelectorAll(".lang-toggle button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          setLanguage(btn.dataset.lang);
+        });
+      });
+
+      els.userName.value = state.userName || "";
+      els.userName.addEventListener("input", () => {
+        state.userName = els.userName.value.trim();
+        saveState();
+      });
+
+      els.citySearchBtn.addEventListener("click", searchCityByName);
+      els.citySearch.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") searchCityByName();
+      });
+    }
+
+    async function pickLocationFromCoords(lat, lon, label) {
+      const location = {
+        id: `map_${lat.toFixed(3)}_${lon.toFixed(3)}`,
+        name: label,
+        country: "",
+        latitude: lat,
+        longitude: lon,
+        timezone: "auto",
+      };
+      setSelectedLocation(location);
+      await fetchAllForLocation(location);
+    }
+
+    function initApp() {
+      captureElements();
+      loadState();
+      applyTranslations();
+      renderCityList();
+      initMap();
+      initTabs();
+      initFeedbackForm();
+      initListeners();
+
+      // Restore selection if available
+      if (state.selectedLocation) {
+        setSelectedLocation(state.selectedLocation);
+        fetchAllForLocation(state.selectedLocation);
       } else {
-        // focus first city on map
-        focusCityOnMap(CITIES[0]);
+        // default to Istanbul for you :)
+        const ist = POPULAR_CITIES.find((c) => c.id === "istanbul") || POPULAR_CITIES[0];
+        selectCity(ist);
       }
-    });
+
+      // Sync language buttons
+      setLanguage(state.lang || "en");
+    }
+
+    initApp();
   </script>
 </body>
 </html>
