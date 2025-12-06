@@ -596,6 +596,8 @@
               </div>
             </div>
 
+            <div class="status-text" id="lastUpdatedText"> </div>
+
             <div class="card">
               <h3 data-i18n="chart.tempRain.title">
                 Next 7 days: temperature & rain
@@ -677,6 +679,7 @@
                 Next 24 hours: air quality
               </h3>
               <canvas id="chart-air-quality"></canvas>
+              <div class="status-text" id="airSummaryText"></div>
             </div>
 
             <div class="card">
@@ -1010,6 +1013,30 @@
         "learn.submit": "Save reflection",
         "learn.text":
           "Data is a mirror. Use it to think, talk, and plan—not just to scroll. What changes do these numbers invite in your life?",
+        "scenario.noData": "Not enough data to illustrate scenarios.",
+        "scenario.summaryPrefix": "Modeled warming:",
+        "scenario.summaryScenario": "With this action it could be about",
+        "scenario.educationalNote": "educational scenario",
+        "climate.modelDetail": "1990→2050 model.",
+        "climate.baselineLabel": "Baseline:",
+        "climate.scenarioLabel": "this scenario:",
+        "overview.lastUpdated": "Last updated:",
+        "overview.localTime": "local time",
+        "loading.city": "Loading data for city…",
+        "loading.search": "Searching city…",
+        "air.summaryPrefix": "Next 24h US AQI:",
+        "air.min": "min",
+        "air.max": "max",
+        "air.avg": "avg",
+        "air.noForecastDetail": "No detailed air quality forecast.",
+        "risk.low": "Low",
+        "risk.medium": "Medium",
+        "risk.high": "High",
+        "risk.floodPrefix": "Flood risk:",
+        "risk.heavyRainPrefix": "Risk of heavy rain:",
+        "risk.noFloodData": "No index for this location.",
+        "risk.floodBase": "Experimental indicator.",
+        "risk.ensembleBase": "Average ensemble rain:",
       },
       tr: {
         "app.title": "İklim Gerçeği Paneli",
@@ -1069,7 +1096,45 @@
         "learn.submit": "Yansıtmayı kaydet",
         "learn.text":
           "Veri bir ayna gibidir. Sadece bakmak için değil; düşünmek, konuşmak ve plan yapmak için kullan.",
+        "scenario.noData": "İklim senaryosu için yeterli veri yok.",
+        "scenario.summaryPrefix": "Model ısınması:",
+        "scenario.summaryScenario": "Bu eylemle yaklaşık",
+        "scenario.educationalNote": "eğitici senaryo",
+        "climate.modelDetail": "1990→2050 model.",
+        "climate.baselineLabel": "Temel:",
+        "climate.scenarioLabel": "bu senaryo:",
+        "overview.lastUpdated": "Son güncelleme:",
+        "overview.localTime": "yerel saat",
+        "loading.city": "Şehir verileri yükleniyor…",
+        "loading.search": "Şehir aranıyor…",
+        "air.summaryPrefix": "Önümüzdeki 24 saatte US AQI:",
+        "air.min": "min",
+        "air.max": "maks",
+        "air.avg": "ort",
+        "air.noForecastDetail": "Detaylı hava kalitesi tahmini yok.",
+        "risk.low": "Düşük",
+        "risk.medium": "Orta",
+        "risk.high": "Yüksek",
+        "risk.floodPrefix": "Sel riski:",
+        "risk.heavyRainPrefix": "Şiddetli yağış riski:",
+        "risk.noFloodData": "Bu konum için indeks yok.",
+        "risk.floodBase": "Deneme amaçlı bir gösterge.",
+        "risk.ensembleBase": "Topluluk ortalama yağış:",
       },
+    };
+
+    const chartPalette = {
+      text: "#e5e7eb",
+      gridStrong: "rgba(148,163,184,0.25)",
+      gridSoft: "rgba(148,163,184,0.15)",
+      gridFaint: "rgba(148,163,184,0.12)",
+      lineMax: "#60a5fa",
+      lineMin: "#a5b4fc",
+      lineFuture: "#f97316",
+      barRain: "#22c55e",
+      linePM25: "#c084fc",
+      linePM10: "#f472b6",
+      lineAQI: "#facc15",
     };
 
     let state = {
@@ -1081,6 +1146,7 @@
       climateScenario: "high",
       scenarioLevel: 50,
       climateData: null,
+      lastUpdatedAt: null,
       charts: {
         dailyTempRain: null,
         airQuality: null,
@@ -1111,6 +1177,16 @@
       return `${Number(min).toFixed(decimals)} – ${Number(max).toFixed(decimals)}`;
     }
 
+    function formatLocalDateTime(date) {
+      const pad = (n) => n.toString().padStart(2, "0");
+      const year = date.getFullYear();
+      const month = pad(date.getMonth() + 1);
+      const day = pad(date.getDate());
+      const hour = pad(date.getHours());
+      const minute = pad(date.getMinutes());
+      return `${year}-${month}-${day} ${hour}:${minute}`;
+    }
+
     function average(arr) {
       if (!Array.isArray(arr) || arr.length === 0) return null;
       const sum = arr.reduce((a, b) => a + b, 0);
@@ -1126,6 +1202,23 @@
 
     function qs(id) {
       return document.getElementById(id);
+    }
+
+    function renderLastUpdated() {
+      if (!els.lastUpdatedText) return;
+      if (!state.lastUpdatedAt) {
+        els.lastUpdatedText.textContent = "";
+        return;
+      }
+      const ts = formatLocalDateTime(state.lastUpdatedAt);
+      els.lastUpdatedText.textContent = `${t("overview.lastUpdated")} ${ts} (${t("overview.localTime")})`;
+    }
+
+    function getRiskLabel(value, thresholds) {
+      if (value === null || value === undefined || Number.isNaN(value)) return null;
+      if (value < thresholds.low) return t("risk.low");
+      if (value < thresholds.high) return t("risk.medium");
+      return t("risk.high");
     }
 
     function captureElements() {
@@ -1161,6 +1254,8 @@
       els.summaryFloodDetail = qs("summary-flood-detail");
       els.summaryEnsemble = qs("summary-ensemble");
       els.summaryEnsembleDetail = qs("summary-ensemble-detail");
+      els.airSummaryText = qs("airSummaryText");
+      els.lastUpdatedText = qs("lastUpdatedText");
 
       els.feedbackForm = qs("feedbackForm");
       els.feedbackStatus = qs("feedbackStatus");
@@ -1213,6 +1308,10 @@
     // ============================
     // i18n helpers
     // ============================
+    function t(key) {
+      return translations[state.lang]?.[key] ?? translations.en[key] ?? key;
+    }
+
     function applyTranslations() {
       const dict = translations[state.lang] || translations.en;
       document.querySelectorAll("[data-i18n]").forEach((el) => {
@@ -1230,6 +1329,8 @@
       state.lang = lang;
       saveState();
       applyTranslations();
+
+      renderLastUpdated();
 
       refreshScenarioView();
 
@@ -1342,7 +1443,7 @@
         return;
       }
 
-      showLoading("Searching city…");
+      showLoading(t("loading.search"));
 
       try {
         const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
@@ -1537,18 +1638,26 @@
               label: "Max °C",
               data: tempsMax,
               yAxisID: "y1",
+              borderColor: chartPalette.lineMax,
+              backgroundColor: chartPalette.lineMax,
+              tension: 0.35,
             },
             {
               type: "line",
               label: "Min °C",
               data: tempsMin,
               yAxisID: "y1",
+              borderColor: chartPalette.lineMin,
+              backgroundColor: chartPalette.lineMin,
+              tension: 0.35,
             },
             {
               type: "bar",
               label: "Rain (mm)",
               data: rain,
               yAxisID: "y2",
+              backgroundColor: chartPalette.barRain,
+              borderWidth: 0,
             },
           ],
         },
@@ -1559,27 +1668,51 @@
             y1: {
               type: "linear",
               position: "left",
+              ticks: { color: chartPalette.text },
+              grid: { color: chartPalette.gridStrong },
             },
             y2: {
               type: "linear",
               position: "right",
-              grid: { drawOnChartArea: false },
+              ticks: { color: chartPalette.text },
+              grid: { drawOnChartArea: false, color: chartPalette.gridSoft },
             },
+            x: { ticks: { color: chartPalette.text }, grid: { color: chartPalette.gridFaint } },
           },
           plugins: {
-            legend: { display: true },
+            legend: {
+              display: true,
+              labels: { color: chartPalette.text },
+            },
           },
         },
       });
     }
 
     function buildAirQualityChart(hourly) {
-      if (!els.chartAirQuality || !hourly.time) return;
+      const times = hourly?.time ?? [];
+      if (!els.chartAirQuality || !times.length) return;
 
-      const labels = hourly.time.slice(0, 24);
-      const pm25 = hourly.pm2_5?.slice(0, 24) ?? [];
-      const pm10 = hourly.pm10?.slice(0, 24) ?? [];
-      const aqi = hourly.us_aqi?.slice(0, 24) ?? [];
+      const n = Math.min(
+        times.length,
+        (hourly.pm2_5 ?? []).length,
+        (hourly.pm10 ?? []).length,
+        (hourly.us_aqi ?? []).length,
+        24
+      );
+
+      if (!n) {
+        if (state.charts.airQuality) {
+          state.charts.airQuality.destroy();
+          state.charts.airQuality = null;
+        }
+        return;
+      }
+
+      const labels = times.slice(0, n);
+      const pm25 = (hourly.pm2_5 ?? []).slice(0, n);
+      const pm10 = (hourly.pm10 ?? []).slice(0, n);
+      const aqi = (hourly.us_aqi ?? []).slice(0, n);
 
       if (state.charts.airQuality) state.charts.airQuality.destroy();
 
@@ -1588,17 +1721,49 @@
         data: {
           labels,
           datasets: [
-            { label: "PM2.5", data: pm25 },
-            { label: "PM10", data: pm10 },
-            { label: "US AQI", data: aqi },
+            { label: "PM2.5", data: pm25, borderColor: chartPalette.linePM25, backgroundColor: chartPalette.linePM25, tension: 0.35 },
+            { label: "PM10", data: pm10, borderColor: chartPalette.linePM10, backgroundColor: chartPalette.linePM10, tension: 0.35 },
+            { label: "US AQI", data: aqi, borderColor: chartPalette.lineAQI, backgroundColor: chartPalette.lineAQI, tension: 0.35 },
           ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: true } },
+          plugins: {
+            legend: {
+              display: true,
+              labels: { color: chartPalette.text },
+            },
+          },
+          scales: {
+            x: { ticks: { color: chartPalette.text }, grid: { color: chartPalette.gridFaint } },
+            y: { ticks: { color: chartPalette.text }, grid: { color: chartPalette.gridSoft } },
+          },
         },
       });
+    }
+
+    function updateAirSummary(hourly) {
+      if (!els.airSummaryText) return;
+      const times = hourly?.time ?? [];
+      const aqi = hourly?.us_aqi ?? [];
+      const n = Math.min(times.length, aqi.length, 24);
+      if (!n) {
+        els.airSummaryText.textContent = t("air.noForecastDetail");
+        return;
+      }
+      const slice = aqi.slice(0, n).filter((v) => Number.isFinite(v));
+      if (!slice.length) {
+        els.airSummaryText.textContent = t("air.noForecastDetail");
+        return;
+      }
+      const minVal = Math.min(...slice);
+      const maxVal = Math.max(...slice);
+      const avgVal = average(slice);
+      els.airSummaryText.textContent = `${t("air.summaryPrefix")} ${t("air.min")} ${formatNumber(
+        minVal,
+        0
+      )}, ${t("air.max")} ${formatNumber(maxVal, 0)}, ${t("air.avg")} ${formatNumber(avgVal, 0)}.`;
     }
 
     function buildClimateTrendChart(climate, scenarioFactor = 1) {
@@ -1624,18 +1789,30 @@
           datasets: [
             {
               label: "1990 max °C (model)",
-              data: tempsBase,
+              data: tempsBase ?? [],
+              borderColor: chartPalette.lineMin,
+              backgroundColor: chartPalette.lineMin,
+              tension: 0.35,
             },
             {
               label: "2050 max °C (model)",
-              data: tempsFuture,
+              data: tempsFuture ?? [],
+              borderColor: chartPalette.lineFuture,
+              backgroundColor: chartPalette.lineFuture,
+              tension: 0.35,
             },
           ],
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
-          plugins: { legend: { display: true } },
+          plugins: {
+            legend: { display: true, labels: { color: chartPalette.text } },
+          },
+          scales: {
+            x: { ticks: { color: chartPalette.text }, grid: { color: chartPalette.gridFaint } },
+            y: { ticks: { color: chartPalette.text }, grid: { color: chartPalette.gridSoft } },
+          },
         },
       });
     }
@@ -1868,29 +2045,19 @@
     function updateScenarioSummary(delta, scenarioDelta) {
       if (!els.scenarioSummary) return;
       if (delta === null || scenarioDelta === null) {
-        els.scenarioSummary.textContent =
-          state.lang === "tr"
-            ? "İklim senaryosu için yeterli veri yok."
-            : "Not enough data to illustrate scenarios.";
+        els.scenarioSummary.textContent = t("scenario.noData");
         return;
       }
-      if (state.lang === "tr") {
-        els.scenarioSummary.textContent = `Model ısınması: +${formatNumber(
-          delta,
-          1
-        )} °C. Bu senaryoda yaklaşık +${formatNumber(
-          scenarioDelta,
-          1
-        )} °C olabilir (eğitici senaryo).`;
-      } else {
-        els.scenarioSummary.textContent = `Modeled warming: +${formatNumber(
-          delta,
-          1
-        )} °C. With this action it could be about +${formatNumber(
-          scenarioDelta,
-          1
-        )} °C (educational scenario).`;
-      }
+      const prefix = t("scenario.summaryPrefix");
+      const scenarioText = t("scenario.summaryScenario");
+      const note = t("scenario.educationalNote");
+      els.scenarioSummary.textContent = `${prefix} +${formatNumber(
+        delta,
+        1
+      )} °C. ${scenarioText} +${formatNumber(
+        scenarioDelta,
+        1
+      )} °C (${note}).`;
     }
 
     function updateClimateTrendSummary(location, climate) {
@@ -1929,10 +2096,13 @@
       const factor = getScenarioFactor();
       const scenarioDelta = delta * factor;
       els.summaryClimateTrend.textContent = `${formatNumber(delta, 1)} °C`;
-      els.summaryClimateTrendDetail.textContent =
-        state.lang === "tr"
-          ? "Model: 1990 ile 2050 arası ortalama maksimum sıcaklık farkı."
-          : "Model: difference in average max temperature between 1990 and 2050.";
+      const modelLabel = t("climate.modelDetail");
+      const baselineLabel = t("climate.baselineLabel");
+      const scenarioLabel = t("climate.scenarioLabel");
+      els.summaryClimateTrendDetail.textContent = `${modelLabel} ${baselineLabel} +${formatNumber(
+        delta,
+        1
+      )} °C, ${scenarioLabel} +${formatNumber(scenarioDelta, 1)} °C.`;
 
       msgEl.textContent =
         state.lang === "tr"
@@ -1947,6 +2117,7 @@
     }
 
     function updateMarineUI(marine) {
+      if (!els.summaryMarine || !els.summaryMarineDetail) return;
       if (!marine || !marine.hourly) {
         els.summaryMarine.textContent = "–";
         els.summaryMarineDetail.textContent =
@@ -1973,6 +2144,7 @@
     }
 
     function updateFloodUI(flood) {
+      if (!els.summaryFlood || !els.summaryFloodDetail) return;
       if (!flood || !flood.hourly) {
         els.summaryFlood.textContent = "–";
         els.summaryFloodDetail.textContent =
@@ -1984,18 +2156,22 @@
       const keys = Object.keys(flood.hourly).filter((k) => k !== "time");
       if (!keys.length) {
         els.summaryFlood.textContent = "–";
+        els.summaryFloodDetail.textContent = t("risk.noFloodData");
         return;
       }
       const key = keys[0];
       const val = flood.hourly[key]?.[0];
       els.summaryFlood.textContent = `${formatNumber(val, 2)}`;
-      els.summaryFloodDetail.textContent =
-        state.lang === "tr"
-          ? "Deneme amaçlı bir sel / yağış göstergesi."
-          : "Experimental flood / heavy rain indicator.";
+      const label = getRiskLabel(val, { low: 0.3, high: 0.7 });
+      const prefix = t("risk.floodPrefix");
+      const baseText = t("risk.floodBase");
+      els.summaryFloodDetail.textContent = label
+        ? `${baseText} ${prefix} ${label}.`
+        : `${baseText} ${t("risk.noFloodData")}`;
     }
 
     function updateEnsembleUI(ensemble) {
+      if (!els.summaryEnsemble || !els.summaryEnsembleDetail) return;
       if (!ensemble || !ensemble.hourly) {
         els.summaryEnsemble.textContent = "–";
         els.summaryEnsembleDetail.textContent =
@@ -2004,28 +2180,32 @@
             : "No ensemble forecast data found.";
         return;
       }
-      const rain = ensemble.hourly.precipitation ?? [];
+      const rain = (ensemble.hourly.precipitation ?? []).filter((v) =>
+        Number.isFinite(v)
+      );
       if (!rain.length) {
         els.summaryEnsemble.textContent = "–";
+        els.summaryEnsembleDetail.textContent =
+          state.lang === "tr"
+            ? "Topluluk tahmini verisi bulunamadı."
+            : "No ensemble forecast data found.";
         return;
       }
       const avg = average(rain);
       els.summaryEnsemble.textContent = `${formatNumber(avg, 2)} mm`;
-      els.summaryEnsembleDetail.textContent =
-        state.lang === "tr"
-          ? "Birden fazla model koşumunun ortalama yağış tahmini."
-          : "Average precipitation across many model members.";
+      const label = getRiskLabel(avg, { low: 0.2, high: 1 });
+      const baseText = t("risk.ensembleBase");
+      const riskPrefix = t("risk.heavyRainPrefix");
+      els.summaryEnsembleDetail.textContent = label
+        ? `${baseText} ${formatNumber(avg, 2)} mm. ${riskPrefix} ${label}.`
+        : `${baseText} ${formatNumber(avg, 2)} mm.`;
     }
 
     // ============================
     // Fetch all & orchestrate
     // ============================
     async function fetchAllForLocation(location) {
-      showLoading(
-        state.lang === "tr"
-          ? "Veriler yükleniyor…"
-          : "Loading data for city…"
-      );
+      showLoading(t("loading.city"));
       try {
         const results = await Promise.allSettled([
           fetchForecast(location),
@@ -2053,8 +2233,16 @@
         updateFloodUI(flood);
         updateEnsembleUI(ensemble);
 
+        state.lastUpdatedAt = new Date();
+        renderLastUpdated();
+
         if (forecast.daily) buildDailyTempRainChart(forecast.daily);
-        if (air.hourly) buildAirQualityChart(air.hourly);
+        if (air.hourly) {
+          buildAirQualityChart(air.hourly);
+          updateAirSummary(air.hourly);
+        } else if (els.airSummaryText) {
+          els.airSummaryText.textContent = t("air.noForecastDetail");
+        }
 
         await logSnapshotToSupabase(
           location,
