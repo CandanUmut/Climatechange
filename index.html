@@ -348,6 +348,42 @@
       color: var(--accent);
     }
 
+    .scenario-box {
+      margin-top: 8px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(34, 197, 94, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .scenario-title {
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .scenario-controls {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 6px;
+      font-size: 0.85rem;
+    }
+
+    .scenario-controls label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .scenario-slider {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.8rem;
+    }
+
     .feedback-form {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -577,6 +613,33 @@
               <canvas id="chart-climate-trend"></canvas>
               <div class="status-text" id="climateTrendStatus">
                 –
+              </div>
+              <div class="scenario-box">
+                <div class="scenario-title" data-i18n="scenario.title">
+                  What if we change our behavior?
+                </div>
+                <div class="scenario-controls">
+                  <label>
+                    <input type="radio" name="scenario" value="high" checked />
+                    <span data-i18n="scenario.high">Business as usual (high emissions)</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="scenario" value="medium" />
+                    <span data-i18n="scenario.medium">Moderate action</span>
+                  </label>
+                  <label>
+                    <input type="radio" name="scenario" value="strong" />
+                    <span data-i18n="scenario.strong">Strong climate action</span>
+                  </label>
+                </div>
+                <div class="scenario-slider">
+                  <label for="scenarioSlider" data-i18n="scenario.slider">Global action level</label>
+                  <input id="scenarioSlider" type="range" min="0" max="100" value="50" />
+                </div>
+                <div class="status-text" id="scenarioSummary"></div>
+                <div class="status-text" data-i18n="scenario.note">
+                  Educational illustration only; not an official forecast.
+                </div>
               </div>
             </div>
             <div class="card">
@@ -914,6 +977,13 @@
         "chart.climate.title": "Modeled warming: past vs future",
         "text.climateExplain":
           "Climate models use physics, observations, and scenarios to estimate how much a location is likely to heat up. This is direction, not exact prophecy.",
+        "scenario.title": "What if we change our behavior?",
+        "scenario.high": "Business as usual (high emissions)",
+        "scenario.medium": "Moderate action",
+        "scenario.strong": "Strong climate action",
+        "scenario.slider": "Global action level",
+        "scenario.note": "Educational illustration only; not an official forecast.",
+        "climate.noData": "Could not load climate model data for this area.",
         "card.airDetail.pm": "PM2.5 / PM10 (µg/m³)",
         "card.airDetail.gases": "Key gases (µg/m³)",
         "card.marine.title": "Sea surface (if coastal)",
@@ -966,6 +1036,13 @@
         "chart.climate.title": "Model tahmini ısınma: geçmiş vs gelecek",
         "text.climateExplain":
           "İklim modelleri, fizik ve gözlemlerle bir bölgenin önümüzdeki on yıllarda ne kadar ısınabileceğini tahmin eder. Bu kesin hüküm değil, yön gösterir.",
+        "scenario.title": "Davranışımızı değiştirsek ne olur?",
+        "scenario.high": "Mevcut gidişat (yüksek emisyon)",
+        "scenario.medium": "Orta düzeyde eylem",
+        "scenario.strong": "Güçlü iklim eylemi",
+        "scenario.slider": "Küresel eylem seviyesi",
+        "scenario.note": "Eğitici bir örnek; resmi tahmin değildir.",
+        "climate.noData": "Bu bölge için iklim modeli verisi alınamadı.",
         "card.airDetail.pm": "PM2.5 / PM10 (µg/m³)",
         "card.airDetail.gases": "Temel gazlar (µg/m³)",
         "card.marine.title": "Deniz yüzeyi (kıyıya yakınsa)",
@@ -1001,6 +1078,9 @@
       selectedLocation: null,
       map: null,
       mapMarker: null,
+      climateScenario: "high",
+      scenarioLevel: 50,
+      climateData: null,
       charts: {
         dailyTempRain: null,
         airQuality: null,
@@ -1009,6 +1089,40 @@
     };
 
     const els = {};
+
+    // ============================
+    // Helpers
+    // ============================
+    function formatNumber(value, decimals = 1, fallback = "–") {
+      if (value === null || value === undefined || Number.isNaN(value)) return fallback;
+      return Number(value).toFixed(decimals);
+    }
+
+    function formatRange(min, max, decimals = 1, fallback = "–") {
+      if (
+        min === null ||
+        min === undefined ||
+        max === null ||
+        max === undefined ||
+        Number.isNaN(min) ||
+        Number.isNaN(max)
+      )
+        return fallback;
+      return `${Number(min).toFixed(decimals)} – ${Number(max).toFixed(decimals)}`;
+    }
+
+    function average(arr) {
+      if (!Array.isArray(arr) || arr.length === 0) return null;
+      const sum = arr.reduce((a, b) => a + b, 0);
+      const val = sum / arr.length;
+      return Number.isFinite(val) ? val : null;
+    }
+
+    function latestValue(arr) {
+      if (!Array.isArray(arr) || arr.length === 0) return null;
+      const val = arr[arr.length - 1];
+      return Number.isFinite(val) ? val : null;
+    }
 
     function qs(id) {
       return document.getElementById(id);
@@ -1057,6 +1171,11 @@
       els.chartDailyTempRain = qs("chart-daily-temp-rain");
       els.chartAirQuality = qs("chart-air-quality");
       els.chartClimateTrend = qs("chart-climate-trend");
+      els.scenarioSummary = qs("scenarioSummary");
+      els.scenarioSlider = qs("scenarioSlider");
+      els.scenarioRadios = Array.from(
+        document.querySelectorAll('input[name="scenario"]')
+      );
     }
 
     // ============================
@@ -1072,6 +1191,9 @@
         if (parsed.lang) state.lang = parsed.lang;
         if (parsed.userName) state.userName = parsed.userName;
         if (parsed.selectedLocation) state.selectedLocation = parsed.selectedLocation;
+        if (parsed.climateScenario) state.climateScenario = parsed.climateScenario;
+        if (typeof parsed.scenarioLevel === "number")
+          state.scenarioLevel = parsed.scenarioLevel;
       } catch (e) {
         console.warn("Failed to load state", e);
       }
@@ -1082,6 +1204,8 @@
         lang: state.lang,
         userName: state.userName,
         selectedLocation: state.selectedLocation,
+        climateScenario: state.climateScenario,
+        scenarioLevel: state.scenarioLevel,
       };
       localStorage.setItem(LS_KEY, JSON.stringify(toSave));
     }
@@ -1106,6 +1230,8 @@
       state.lang = lang;
       saveState();
       applyTranslations();
+
+      refreshScenarioView();
 
       document.querySelectorAll(".lang-toggle button").forEach((btn) => {
         btn.classList.toggle("active", btn.dataset.lang === lang);
@@ -1394,10 +1520,10 @@
     // ============================
     function buildDailyTempRainChart(daily) {
       if (!els.chartDailyTempRain) return;
-      const labels = daily.time;
-      const tempsMax = daily.temperature_2m_max;
-      const tempsMin = daily.temperature_2m_min;
-      const rain = daily.precipitation_sum;
+      const labels = daily?.time ?? [];
+      const tempsMax = daily?.temperature_2m_max ?? [];
+      const tempsMin = daily?.temperature_2m_min ?? [];
+      const rain = daily?.precipitation_sum ?? [];
 
       if (state.charts.dailyTempRain) state.charts.dailyTempRain.destroy();
 
@@ -1475,14 +1601,19 @@
       });
     }
 
-    function buildClimateTrendChart(climate) {
+    function buildClimateTrendChart(climate, scenarioFactor = 1) {
       if (!els.chartClimateTrend) return;
       const { baseline, future } = climate;
 
       const timesBase = baseline?.daily?.time ?? [];
       const tempsBase = baseline?.daily?.temperature_2m_max ?? [];
       const timesFuture = future?.daily?.time ?? [];
-      const tempsFuture = future?.daily?.temperature_2m_max ?? [];
+      const tempsFutureRaw = future?.daily?.temperature_2m_max ?? [];
+      const tempsFuture = applyScenarioToFuture(
+        tempsBase,
+        tempsFutureRaw,
+        scenarioFactor
+      );
 
       if (state.charts.climateTrend) state.charts.climateTrend.destroy();
 
@@ -1633,9 +1764,10 @@
         location.country ? " · " + location.country : ""
       }`;
       els.summaryCityName.textContent = location.name;
-      els.summaryCityCoords.textContent = `${location.latitude.toFixed(
+      els.summaryCityCoords.textContent = `${formatNumber(location.latitude, 3)} , ${formatNumber(
+        location.longitude,
         3
-      )}, ${location.longitude.toFixed(3)}`;
+      )}`;
 
       setMapMarker(location.latitude, location.longitude, location.name);
       highlightSelectedCity();
@@ -1650,31 +1782,16 @@
       const tempMax = daily.temperature_2m_max?.[todayIndex] ?? null;
       const precipToday = daily.precipitation_sum?.[todayIndex] ?? null;
 
-      if (currentTemp != null) {
-        els.summaryTempCurrent.textContent = `${currentTemp.toFixed(1)} °C`;
-      } else {
-        els.summaryTempCurrent.textContent = "–";
-      }
+      els.summaryTempCurrent.textContent = `${formatNumber(currentTemp, 1)} °C`;
 
-      if (tempMin != null && tempMax != null) {
-        els.summaryTempMinMax.textContent = `${tempMin.toFixed(
-          1
-        )} – ${tempMax.toFixed(1)} °C`;
-      } else {
-        els.summaryTempMinMax.textContent = "–";
-      }
+      els.summaryTempMinMax.textContent = `${formatRange(tempMin, tempMax, 1)} °C`;
 
-      if (precipToday != null) {
-        els.summaryRain.textContent = `${precipToday.toFixed(1)} mm`;
-      } else {
-        els.summaryRain.textContent = "–";
-      }
+      els.summaryRain.textContent = `${formatNumber(precipToday, 1)} mm`;
 
       if (daily.precipitation_sum && daily.precipitation_sum.length) {
-        const avg =
-          daily.precipitation_sum.reduce((a, b) => a + b, 0) /
-          daily.precipitation_sum.length;
-        els.summaryRainDetail.textContent = `7-day avg: ${avg.toFixed(1)} mm/day`;
+        const avg = average(daily.precipitation_sum);
+        els.summaryRainDetail.textContent =
+          avg !== null ? `7-day avg: ${formatNumber(avg, 1)} mm/day` : "–";
       } else {
         els.summaryRainDetail.textContent = "–";
       }
@@ -1684,7 +1801,7 @@
       if (len > 0) {
         const lastIdx = len - 1;
         const aqi = hourlyAir.us_aqi[lastIdx];
-        els.summaryAqi.textContent = `${aqi.toFixed(0)}`;
+        els.summaryAqi.textContent = formatNumber(aqi, 0);
         els.summaryAqiDetail.textContent =
           state.lang === "tr"
             ? "US AQI tahmini – değer ne kadar yüksekse risk o kadar fazla."
@@ -1697,7 +1814,9 @@
       const pm10 = hourlyAir.pm10?.[len - 1] ?? null;
       const pm25 = hourlyAir.pm2_5?.[len - 1] ?? null;
       els.summaryAirPm.textContent =
-        pm25 != null && pm10 != null ? `${pm25.toFixed(1)} / ${pm10.toFixed(1)}` : "–";
+        pm25 != null && pm10 != null
+          ? `${formatNumber(pm25, 1)} / ${formatNumber(pm10, 1)}`
+          : "–";
       els.summaryAirPmDetail.textContent =
         state.lang === "tr"
           ? "PM2.5 akciğerlere en derin inen parçacıklardır."
@@ -1707,7 +1826,7 @@
       const co = hourlyAir.carbon_monoxide?.[len - 1] ?? null;
       els.summaryAirGas.textContent =
         ozone != null && co != null
-          ? `O₃ ${ozone.toFixed(1)}, CO ${co.toFixed(1)}`
+          ? `O₃ ${formatNumber(ozone, 1)}, CO ${formatNumber(co, 1)}`
           : "–";
       els.summaryAirGasDetail.textContent =
         state.lang === "tr"
@@ -1717,49 +1836,114 @@
       const elevVal = Array.isArray(elevation?.elevation)
         ? elevation.elevation[0]
         : null;
-      if (elevVal != null) {
-        els.summaryElevation.textContent = `${elevVal.toFixed(0)} m`;
-        els.summaryElevationDetail.textContent =
-          state.lang === "tr"
-            ? "Rakım, sıcaklık ve sel riskini etkiler."
-            : "Elevation affects temperature and flood risk.";
-      } else {
-        els.summaryElevation.textContent = "–";
-        els.summaryElevationDetail.textContent = "–";
-      }
+      els.summaryElevation.textContent = `${formatNumber(elevVal, 0)} m`;
+      els.summaryElevationDetail.textContent =
+        state.lang === "tr"
+          ? "Rakım, sıcaklık ve sel riskini etkiler."
+          : "Elevation affects temperature and flood risk.";
 
-      if (
-        climate?.baseline?.daily?.temperature_2m_max &&
-        climate?.future?.daily?.temperature_2m_max
-      ) {
-        const avg = (arr) =>
-          arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-        const baseAvg = avg(climate.baseline.daily.temperature_2m_max);
-        const futureAvg = avg(climate.future.daily.temperature_2m_max);
-        if (baseAvg != null && futureAvg != null) {
-          const delta = futureAvg - baseAvg;
-          els.summaryClimateTrend.textContent = `${delta.toFixed(1)} °C`;
-          els.summaryClimateTrendDetail.textContent =
-            state.lang === "tr"
-              ? "Model: 1990 ile 2050 yılları arasında ortalama maksimum sıcaklık farkı."
-              : "Model: difference in average max temperature between 1990 and 2050.";
-          const text =
-            state.lang === "tr"
-              ? `Bu model, ${location.name} için yaklaşık ${delta.toFixed(
-                  1
-                )} °C'lik bir ısınma öngörüyor (1990 → 2050).`
-              : `This model suggests about ${delta.toFixed(
-                  1
-                )} °C warming for ${location.name} (1990 → 2050).`;
-          qs("climateTrendStatus").textContent = text;
-        } else {
-          els.summaryClimateTrend.textContent = "–";
-          els.summaryClimateTrendDetail.textContent = "–";
-        }
+      updateClimateTrendSummary(location, climate);
+    }
+
+    function applyScenarioToFuture(baselineTemps, futureTemps, factor) {
+      const baseAvg = average(baselineTemps);
+      const futureAvg = average(futureTemps);
+      if (baseAvg === null || futureAvg === null) return futureTemps ?? [];
+      const delta = futureAvg - baseAvg;
+      const targetDelta = delta * factor;
+      const offset = targetDelta - delta;
+      return (futureTemps ?? []).map((val) =>
+        Number.isFinite(val) ? val + offset : val
+      );
+    }
+
+    function getScenarioFactor() {
+      const map = { high: 1, medium: 0.7, strong: 0.4 };
+      const base = map[state.climateScenario] ?? 1;
+      const sliderVal = Number(els.scenarioSlider?.value ?? 50);
+      const sliderFactor = 1 - (sliderVal / 100) * 0.3;
+      return Math.max(0, base * sliderFactor);
+    }
+
+    function updateScenarioSummary(delta, scenarioDelta) {
+      if (!els.scenarioSummary) return;
+      if (delta === null || scenarioDelta === null) {
+        els.scenarioSummary.textContent =
+          state.lang === "tr"
+            ? "İklim senaryosu için yeterli veri yok."
+            : "Not enough data to illustrate scenarios.";
+        return;
+      }
+      if (state.lang === "tr") {
+        els.scenarioSummary.textContent = `Model ısınması: +${formatNumber(
+          delta,
+          1
+        )} °C. Bu senaryoda yaklaşık +${formatNumber(
+          scenarioDelta,
+          1
+        )} °C olabilir (eğitici senaryo).`;
       } else {
+        els.scenarioSummary.textContent = `Modeled warming: +${formatNumber(
+          delta,
+          1
+        )} °C. With this action it could be about +${formatNumber(
+          scenarioDelta,
+          1
+        )} °C (educational scenario).`;
+      }
+    }
+
+    function updateClimateTrendSummary(location, climate) {
+      const msgEl = qs("climateTrendStatus");
+      state.climateData = climate;
+      if (
+        !climate?.baseline?.daily?.temperature_2m_max ||
+        !climate?.future?.daily?.temperature_2m_max
+      ) {
         els.summaryClimateTrend.textContent = "–";
         els.summaryClimateTrendDetail.textContent = "–";
+        msgEl.textContent =
+          translations[state.lang]?.["climate.noData"] ||
+          translations.en["climate.noData"];
+        if (state.charts.climateTrend) state.charts.climateTrend.destroy();
+        updateScenarioSummary(null, null);
+        return;
       }
+
+      const baseTemps = climate.baseline.daily.temperature_2m_max ?? [];
+      const futureTemps = climate.future.daily.temperature_2m_max ?? [];
+      const baseAvg = average(baseTemps);
+      const futureAvg = average(futureTemps);
+
+      if (baseAvg === null || futureAvg === null) {
+        els.summaryClimateTrend.textContent = "–";
+        els.summaryClimateTrendDetail.textContent = "–";
+        msgEl.textContent =
+          translations[state.lang]?.["climate.noData"] ||
+          translations.en["climate.noData"];
+        updateScenarioSummary(null, null);
+        return;
+      }
+
+      const delta = futureAvg - baseAvg;
+      const factor = getScenarioFactor();
+      const scenarioDelta = delta * factor;
+      els.summaryClimateTrend.textContent = `${formatNumber(delta, 1)} °C`;
+      els.summaryClimateTrendDetail.textContent =
+        state.lang === "tr"
+          ? "Model: 1990 ile 2050 arası ortalama maksimum sıcaklık farkı."
+          : "Model: difference in average max temperature between 1990 and 2050.";
+
+      msgEl.textContent =
+        state.lang === "tr"
+          ? `${location.name} için yaklaşık +${formatNumber(
+              delta,
+              1
+            )} °C ısınma (1990 → 2050).`
+          : `Around +${formatNumber(delta, 1)} °C warming for ${location.name} (1990 → 2050).`;
+
+      buildClimateTrendChart(climate, factor);
+      updateScenarioSummary(delta, scenarioDelta);
     }
 
     function updateMarineUI(marine) {
@@ -1780,8 +1964,8 @@
             : "No marine data found.";
         return;
       }
-      const last = temps[temps.length - 1];
-      els.summaryMarine.textContent = `${last.toFixed(1)} °C`;
+      const last = latestValue(temps);
+      els.summaryMarine.textContent = `${formatNumber(last, 1)} °C`;
       els.summaryMarineDetail.textContent =
         state.lang === "tr"
           ? "Deniz yüzeyi sıcaklığı deniz seviyesini ve fırtınaları etkiler."
@@ -1804,8 +1988,7 @@
       }
       const key = keys[0];
       const val = flood.hourly[key]?.[0];
-      els.summaryFlood.textContent =
-        val != null ? val.toFixed(2) : "–";
+      els.summaryFlood.textContent = `${formatNumber(val, 2)}`;
       els.summaryFloodDetail.textContent =
         state.lang === "tr"
           ? "Deneme amaçlı bir sel / yağış göstergesi."
@@ -1826,9 +2009,8 @@
         els.summaryEnsemble.textContent = "–";
         return;
       }
-      const avg =
-        rain.reduce((a, b) => a + b, 0) / rain.length;
-      els.summaryEnsemble.textContent = `${avg.toFixed(2)} mm`;
+      const avg = average(rain);
+      els.summaryEnsemble.textContent = `${formatNumber(avg, 2)} mm`;
       els.summaryEnsembleDetail.textContent =
         state.lang === "tr"
           ? "Birden fazla model koşumunun ortalama yağış tahmini."
@@ -1845,16 +2027,26 @@
           : "Loading data for city…"
       );
       try {
-        const [forecast, air, climate, elevation, marine, flood, ensemble] =
-          await Promise.all([
-            fetchForecast(location),
-            fetchAirQuality(location),
-            fetchClimateTrend(location),
-            fetchElevation(location),
-            fetchMarineIfCoastal(location),
-            fetchFlood(location),
-            fetchEnsemble(location),
-          ]);
+        const results = await Promise.allSettled([
+          fetchForecast(location),
+          fetchAirQuality(location),
+          fetchClimateTrend(location),
+          fetchElevation(location),
+          fetchMarineIfCoastal(location),
+          fetchFlood(location),
+          fetchEnsemble(location),
+        ]);
+
+        const [forecastRes, airRes, climateRes, elevationRes, marineRes, floodRes, ensembleRes] =
+          results;
+
+        const forecast = forecastRes.status === "fulfilled" ? forecastRes.value : {};
+        const air = airRes.status === "fulfilled" ? airRes.value : {};
+        const climate = climateRes.status === "fulfilled" ? climateRes.value : null;
+        const elevation = elevationRes.status === "fulfilled" ? elevationRes.value : null;
+        const marine = marineRes.status === "fulfilled" ? marineRes.value : null;
+        const flood = floodRes.status === "fulfilled" ? floodRes.value : null;
+        const ensemble = ensembleRes.status === "fulfilled" ? ensembleRes.value : null;
 
         updateOverviewUI(location, forecast, air, elevation, climate);
         updateMarineUI(marine);
@@ -1863,7 +2055,6 @@
 
         if (forecast.daily) buildDailyTempRainChart(forecast.daily);
         if (air.hourly) buildAirQualityChart(air.hourly);
-        if (climate) buildClimateTrendChart(climate);
 
         await logSnapshotToSupabase(
           location,
@@ -1877,11 +2068,7 @@
         );
       } catch (err) {
         console.error(err);
-        alert(
-          state.lang === "tr"
-            ? "Bazı veriler yüklenirken hata oluştu. Bir kısmı eksik olabilir."
-            : "Error while loading some data. Some parts may be missing."
-        );
+        console.warn("Some data failed to load", err);
       } finally {
         hideLoading();
       }
@@ -1949,15 +2136,47 @@
         saveState();
       });
 
+      if (els.scenarioSlider) {
+        els.scenarioSlider.value = state.scenarioLevel ?? 50;
+      }
+      if (els.scenarioRadios && els.scenarioRadios.length) {
+        els.scenarioRadios.forEach((r) => {
+          r.checked = r.value === state.climateScenario;
+        });
+      }
+
       els.citySearchBtn.addEventListener("click", searchCityByName);
       els.citySearch.addEventListener("keydown", (e) => {
         if (e.key === "Enter") searchCityByName();
       });
+
+      if (els.scenarioRadios) {
+        els.scenarioRadios.forEach((radio) => {
+          radio.addEventListener("change", () => {
+            state.climateScenario = radio.value;
+            saveState();
+            refreshScenarioView();
+          });
+        });
+      }
+
+      if (els.scenarioSlider) {
+        els.scenarioSlider.addEventListener("input", () => {
+          state.scenarioLevel = Number(els.scenarioSlider.value);
+          saveState();
+          refreshScenarioView();
+        });
+      }
+    }
+
+    function refreshScenarioView() {
+      if (!state.climateData || !state.selectedLocation) return;
+      updateClimateTrendSummary(state.selectedLocation, state.climateData);
     }
 
     async function pickLocationFromCoords(lat, lon, label) {
       const location = {
-        id: `map_${lat.toFixed(3)}_${lon.toFixed(3)}`,
+        id: `map_${formatNumber(lat, 3)}_${formatNumber(lon, 3)}`,
         name: label,
         country: "",
         latitude: lat,
